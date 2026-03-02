@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDF → Text Cleaner</title>
+  <title>PDF → TXT (Cleaner)</title>
   <style>
     body{
       font-family: Arial, -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
-      max-width: 1100px;
+      max-width: 1180px;
       margin: auto;
-      padding: 28px 16px;
+      padding: 26px 16px;
       line-height: 1.45;
+      color:#111;
     }
-    h1{ margin: 0 0 10px; }
-    .sub{ color:#444; font-size:14px; margin-bottom:18px; }
-    .back{ display:inline-block; margin-bottom:14px; text-decoration:none; color:#111; }
+    a.back{ display:inline-block; margin-bottom:14px; text-decoration:none; color:#111; }
+    h1{ margin: 0 0 8px; font-size:22px; }
+    .sub{ color:#444; font-size:14px; margin-bottom:16px; }
     .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
     input[type="file"]{
       padding:8px;
@@ -30,17 +31,37 @@
       cursor:pointer;
     }
     button.primary{ background:#111; color:#fff; border-color:#111; }
+    button:hover{ border-color:#999; }
     button:disabled{ opacity:.45; cursor:not-allowed; }
-    .box{
+    .panel{
       margin-top:14px;
       padding:12px;
       border:1px solid #e5e5e5;
       border-radius:14px;
       background:#fcfcfc;
     }
+    .status{ font-size:13px; color:#333; }
+    .ok{ color:#0a7a20; }
+    .danger{ color:#b00020; }
+    .opt{
+      display:flex; flex-wrap:wrap; gap:14px;
+      margin-top:10px; font-size:14px;
+    }
+    .opt label{ display:flex; gap:8px; align-items:center; }
+    .range{
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+      margin-top:10px; font-size:14px;
+    }
+    .range input{
+      width:84px;
+      padding:8px 10px;
+      border:1px solid #ddd;
+      border-radius:10px;
+    }
+    .hint{ font-size:13px; color:#555; margin-top:8px; }
     textarea{
       width:100%;
-      height: 420px;
+      height: 460px;
       margin-top:12px;
       font-size:14px;
       padding:12px;
@@ -49,11 +70,8 @@
       resize: vertical;
       white-space: pre;
     }
-    .opt{ display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:14px; }
-    .opt label{ display:flex; gap:8px; align-items:center; }
-    .hint{ font-size:13px; color:#555; margin-top:8px; }
 
-    /* preview */
+    /* thumbnails */
     .grid{
       display:grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -65,6 +83,14 @@
       border-radius:12px;
       background:white;
       padding:10px;
+      cursor:pointer;
+      user-select:none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .thumb:hover{ border-color:#aaa; }
+    .thumb.selected{
+      border-color:#111;
+      box-shadow: 0 0 0 2px rgba(0,0,0,.08);
     }
     .thumb canvas{
       width:100%;
@@ -81,66 +107,62 @@
       justify-content:space-between;
       align-items:center;
     }
-    .range{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      margin-top:10px;
-      font-size:14px;
-    }
-    .range input{
-      width:80px;
-      padding:8px 10px;
-      border:1px solid #ddd;
-      border-radius:10px;
-    }
-    .status{ font-size:13px; color:#333; }
-    .danger{ color:#b00020; }
-    .ok{ color:#0a7a20; }
+    .small{ font-size:12px; color:#666; }
+    .hr{ height:1px; background:#eee; margin:14px 0; }
   </style>
 </head>
 
 <body>
   <a class="back" href="../">← Tool Hub</a>
 
-  <h1>PDF → Text Cleaner</h1>
+  <h1>PDF → TXT (Cleaner)</h1>
   <div class="sub">
-    PDF 텍스트의 <b>문장 중간 줄바꿈</b>, <b>글자 단위 띄어쓰기(부 동 산)</b>, <b>선지(①~⑤) 1줄 정렬</b>을 정리합니다.
-    <br/>※ 스캔 PDF(이미지)는 텍스트 추출이 아니라 OCR이 필요합니다(이 페이지는 OCR 아님).
+    한글 PDF(한글 2022/Acrobat에서 복사)처럼 공백을 최대한 복원하도록
+    <b>좌표 기반 줄 구성 + gap(간격) 기반 공백 삽입</b>을 적용합니다.
+    <br/>• 선지(①~⑤)는 <b>무조건 1줄씩</b> 출력됩니다.
+    <br/>• 스캔 PDF(이미지 PDF)는 OCR이 필요합니다(이 페이지는 OCR 아님).
   </div>
 
   <div class="row">
     <input type="file" id="pdfFile" accept="application/pdf" />
     <button class="primary" id="btnLoad" onclick="loadPdf()">Load & Preview</button>
-    <button id="btnExtract" onclick="extractSelected()" disabled>Extract (Selected Pages)</button>
+    <button id="btnExtractRange" onclick="extractByRange()" disabled>Extract (Range)</button>
+    <button id="btnExtractChecked" onclick="extractByCheckedPages()" disabled>Extract (Checked)</button>
     <button id="btnDownload" onclick="downloadTxt()" disabled>Download TXT</button>
     <button id="btnCopy" onclick="copyToClipboard()" disabled>Copy</button>
   </div>
 
   <div class="opt">
-    <label><input type="checkbox" id="optRemoveHeaders" checked /> 시험지 머리말(예: “2019년도 … (13-2)”) 삭제</label>
-    <label><input type="checkbox" id="optKeepSubject" /> 과목명(예: “민법”) 유지</label>
-    <label><input type="checkbox" id="optFixHangulFragments" checked /> “부 동 산” 같은 글자단위 조각만 붙이기(안전)</label>
+    <label><input type="checkbox" id="optRemoveHeaders" checked /> 시험지 머리말(“YYYY년도 … (13-2)”) 삭제</label>
+    <label><input type="checkbox" id="optKeepSubject" /> 과목명(예: 민법) 유지</label>
     <label><input type="checkbox" id="optApplyLawDict" checked /> 민법 결합어 사전 교정(물권/법률행위 등)</label>
+    <label><input type="checkbox" id="optFixHangulFragments" /> “부 동 산” 같은 조각형(연속 6음절+)만 붙이기</label>
   </div>
 
-  <div class="box">
+  <div class="panel">
     <div class="status" id="status">상태: PDF를 선택하고 Load & Preview를 누르세요.</div>
+
     <div class="range">
       <span>페이지 범위:</span>
       <label>Start <input type="number" id="rangeStart" min="1" value="1"></label>
       <label>End <input type="number" id="rangeEnd" min="1" value="1"></label>
       <span id="rangeHint" class="status"></span>
+      <button id="btnSetCheckedFromRange" onclick="setCheckedFromRange()" disabled>Check = Range</button>
+      <button id="btnClearChecked" onclick="clearChecked()" disabled>Clear Checks</button>
     </div>
 
-    <div id="previewArea">
-      <div class="hint">미리보기는 로드 후 표시됩니다.</div>
+    <div class="hr"></div>
+
+    <div class="hint">
+      미리보기: 썸네일을 클릭하면 체크됩니다(checked 추출 가능). 큰 PDF는 성능상 <b>최대 30페이지</b>까지만 미리보기.
     </div>
+    <div id="previewArea"><div class="small">로드 후 표시됩니다.</div></div>
   </div>
 
   <textarea id="output" placeholder="추출/정리된 텍스트가 여기에 표시됩니다."></textarea>
-  <div class="hint">• 선지는 <b>무조건 1줄씩</b> 출력됩니다.</div>
+  <div class="hint">
+    팁: 공백이 과하게 붙으면 “조각형만 붙이기” 옵션을 끄고, 공백이 과하게 떨어지면 켜보세요.
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
@@ -149,152 +171,218 @@
 
     const $ = (id) => document.getElementById(id);
 
-    let pdfDoc = null;      // loaded PDF
-    let pdfData = null;     // ArrayBuffer
+    let pdfDoc = null;
+    let pdfData = null;
+    let checkedPages = new Set(); // numbers
+    const MAX_THUMBS = 30;
 
-    function setStatus(msg, cls=""){
-      $("status").innerHTML = `상태: <span class="${cls}">${escapeHtml(msg)}</span>`;
-    }
     function escapeHtml(s){
       return String(s).replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     }
+    function setStatus(msg, cls=""){
+      $("status").innerHTML = `상태: <span class="${cls}">${escapeHtml(msg)}</span>`;
+    }
 
-    async function loadPdf(){
-      const file = $("pdfFile").files[0];
-      if(!file){ alert("PDF를 업로드하세요"); return; }
-
-      $("btnLoad").disabled = true;
-      $("btnExtract").disabled = true;
-      $("btnDownload").disabled = true;
-      $("btnCopy").disabled = true;
-      $("output").value = "";
-      pdfDoc = null; pdfData = null;
-
-      try{
-        setStatus("PDF 로드 중...");
-        pdfData = await file.arrayBuffer();
-        pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
-
-        // range init
-        $("rangeStart").value = 1;
-        $("rangeEnd").value = pdfDoc.numPages;
-        $("rangeStart").max = pdfDoc.numPages;
-        $("rangeEnd").max = pdfDoc.numPages;
-
-        updateRangeHint();
-
-        await renderThumbnails(pdfDoc);
-        $("btnExtract").disabled = false;
-
-        setStatus(`로드 완료 (총 ${pdfDoc.numPages}페이지)`, "ok");
-      }catch(err){
-        console.error(err);
-        setStatus("로드 실패", "danger");
-        alert("PDF 로드/미리보기 중 오류가 발생했습니다.");
-      }finally{
-        $("btnLoad").disabled = false;
-      }
+    function enableAfterLoad(){
+      $("btnExtractRange").disabled = false;
+      $("btnExtractChecked").disabled = false;
+      $("btnSetCheckedFromRange").disabled = false;
+      $("btnClearChecked").disabled = false;
     }
 
     function updateRangeHint(){
-      if(!pdfDoc){
-        $("rangeHint").textContent = "";
-        return;
-      }
+      if(!pdfDoc){ $("rangeHint").textContent = ""; return; }
+
       const s = parseInt($("rangeStart").value, 10);
       const e = parseInt($("rangeEnd").value, 10);
+
       if(Number.isNaN(s) || Number.isNaN(e)){
-        $("rangeHint").innerHTML = `<span class="danger">숫자를 입력하세요.</span>`;
+        $("rangeHint").innerHTML = `<span class="danger">숫자를 입력</span>`;
         return;
       }
       if(s < 1 || e < 1 || s > pdfDoc.numPages || e > pdfDoc.numPages){
-        $("rangeHint").innerHTML = `<span class="danger">1 ~ ${pdfDoc.numPages} 범위로 입력</span>`;
+        $("rangeHint").innerHTML = `<span class="danger">1 ~ ${pdfDoc.numPages}</span>`;
         return;
       }
       if(s > e){
         $("rangeHint").innerHTML = `<span class="danger">Start ≤ End</span>`;
         return;
       }
-      $("rangeHint").innerHTML = `<span class="ok">${s} ~ ${e} 페이지 처리</span>`;
+      $("rangeHint").innerHTML = `<span class="ok">${s}~${e} 페이지</span>`;
     }
 
     $("rangeStart").addEventListener("input", updateRangeHint);
     $("rangeEnd").addEventListener("input", updateRangeHint);
 
+    async function loadPdf(){
+      const file = $("pdfFile").files[0];
+      if(!file){ alert("PDF를 업로드하세요"); return; }
+
+      $("btnLoad").disabled = true;
+      $("btnExtractRange").disabled = true;
+      $("btnExtractChecked").disabled = true;
+      $("btnDownload").disabled = true;
+      $("btnCopy").disabled = true;
+      $("output").value = "";
+
+      pdfDoc = null; pdfData = null;
+      checkedPages = new Set();
+
+      try{
+        setStatus("PDF 로드 중...");
+        pdfData = await file.arrayBuffer();
+        pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+        $("rangeStart").value = 1;
+        $("rangeEnd").value = pdfDoc.numPages;
+        $("rangeStart").max = pdfDoc.numPages;
+        $("rangeEnd").max = pdfDoc.numPages;
+        updateRangeHint();
+
+        await renderThumbnails(pdfDoc);
+
+        enableAfterLoad();
+        setStatus(`로드 완료 (총 ${pdfDoc.numPages}페이지)`, "ok");
+      }catch(err){
+        console.error(err);
+        setStatus("로드 실패", "danger");
+        alert("로드/미리보기 중 오류가 발생했습니다.");
+      }finally{
+        $("btnLoad").disabled = false;
+      }
+    }
+
     async function renderThumbnails(pdf){
       const wrap = document.createElement("div");
       wrap.className = "grid";
-
       $("previewArea").innerHTML = "";
       $("previewArea").appendChild(wrap);
 
-      // 썸네일은 가볍게: 처음 24페이지만 렌더 (너무 큰 PDF 대비)
-      const maxThumb = Math.min(pdf.numPages, 24);
+      const count = Math.min(pdf.numPages, MAX_THUMBS);
 
-      for(let p=1; p<=maxThumb; p++){
+      for(let p=1; p<=count; p++){
         const card = document.createElement("div");
         card.className = "thumb";
+        card.dataset.page = String(p);
+
         const canvas = document.createElement("canvas");
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.innerHTML = `<span>Page ${p}</span><span class="small"></span>`;
+        meta.innerHTML = `<span>Page ${p}</span><span class="small">click to check</span>`;
+
         card.appendChild(canvas);
         card.appendChild(meta);
         wrap.appendChild(card);
+
+        card.addEventListener("click", () => toggleCheck(p, card));
 
         const page = await pdf.getPage(p);
         const viewport = page.getViewport({ scale: 0.35 });
         const ctx = canvas.getContext("2d");
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
-
         await page.render({ canvasContext: ctx, viewport }).promise;
       }
 
-      if(pdf.numPages > maxThumb){
+      if(pdf.numPages > count){
         const note = document.createElement("div");
         note.className = "hint";
-        note.textContent = `미리보기는 성능을 위해 ${maxThumb}페이지만 표시됩니다. 범위 입력으로 원하는 페이지를 처리하세요.`;
+        note.textContent = `미리보기는 성능상 ${count}페이지만 표시됩니다. 범위 입력으로 전체 페이지를 선택해 처리하세요.`;
         $("previewArea").appendChild(note);
       }
     }
 
-    // --------- 텍스트 추출 (선택 범위만) ----------
-    async function extractSelected(){
-      if(!pdfDoc || !pdfData){
-        alert("먼저 Load & Preview를 해주세요.");
+    function toggleCheck(pageNum, cardEl){
+      if(checkedPages.has(pageNum)){
+        checkedPages.delete(pageNum);
+        cardEl.classList.remove("selected");
+      }else{
+        checkedPages.add(pageNum);
+        cardEl.classList.add("selected");
+      }
+      setStatus(`체크됨: ${checkedPages.size}페이지`, checkedPages.size ? "ok" : "");
+    }
+
+    function clearChecked(){
+      checkedPages.clear();
+      document.querySelectorAll(".thumb.selected").forEach(el => el.classList.remove("selected"));
+      setStatus("체크 해제됨");
+    }
+
+    function setCheckedFromRange(){
+      if(!pdfDoc) return;
+      const s = parseInt($("rangeStart").value, 10);
+      const e = parseInt($("rangeEnd").value, 10);
+      if(Number.isNaN(s) || Number.isNaN(e) || s<1 || e<1 || s>e || e>pdfDoc.numPages){
+        alert("범위를 올바르게 입력하세요.");
         return;
       }
 
+      checkedPages.clear();
+
+      // 썸네일로 표시된 페이지(최대 30)만 시각적으로 체크 표시
+      document.querySelectorAll(".thumb").forEach(el=>{
+        const p = parseInt(el.dataset.page, 10);
+        if(p >= s && p <= e){
+          checkedPages.add(p);
+          el.classList.add("selected");
+        }else{
+          el.classList.remove("selected");
+        }
+      });
+
+      // 30페이지 초과 범위는 체크셋에는 넣지 않음(미리보기 제한 때문)
+      // 대신 Range 추출을 사용하면 됨.
+      setStatus(`체크=범위 적용(미리보기 내): ${checkedPages.size}페이지`, checkedPages.size ? "ok" : "");
+    }
+
+    // ---- Extract paths ----
+    async function extractByRange(){
+      if(!pdfDoc) { alert("먼저 Load & Preview"); return; }
       const s = parseInt($("rangeStart").value, 10);
       const e = parseInt($("rangeEnd").value, 10);
       if(Number.isNaN(s) || Number.isNaN(e) || s<1 || e<1 || s>e || e>pdfDoc.numPages){
         alert("페이지 범위를 올바르게 입력하세요.");
         return;
       }
+      await extractPages([...Array(e - s + 1)].map((_,i)=>s+i), `범위 ${s}~${e}`);
+    }
 
-      $("btnExtract").disabled = true;
+    async function extractByCheckedPages(){
+      if(!pdfDoc) { alert("먼저 Load & Preview"); return; }
+      if(checkedPages.size === 0){
+        alert("썸네일을 클릭해 페이지를 체크하거나, Check=Range를 사용하세요.");
+        return;
+      }
+      const pages = Array.from(checkedPages).sort((a,b)=>a-b);
+      await extractPages(pages, `체크 ${pages[0]}~${pages[pages.length-1]} (${pages.length}p)`);
+    }
+
+    async function extractPages(pages, label){
+      $("btnExtractRange").disabled = true;
+      $("btnExtractChecked").disabled = true;
       $("btnDownload").disabled = true;
       $("btnCopy").disabled = true;
       $("output").value = "";
 
       try{
-        setStatus(`추출 중... (${s}~${e})`);
+        setStatus(`추출 중... (${label})`);
 
         let all = "";
-        for(let p=s; p<=e; p++){
+        for(let idx=0; idx<pages.length; idx++){
+          const p = pages[idx];
           const page = await pdfDoc.getPage(p);
           const content = await page.getTextContent({ normalizeWhitespace: false });
-          const lines = groupIntoLines(content.items);
+          const lines = groupIntoLinesWithGap(content.items);
           all += lines.join("\n") + "\n\n";
-          setStatus(`추출 중... (${p}/${e})`);
+          setStatus(`추출 중... (${idx+1}/${pages.length})`);
         }
 
         const cleaned = cleanText(all, {
           removeHeaders: $("optRemoveHeaders").checked,
           keepSubject: $("optKeepSubject").checked,
-          fixHangulFragments: $("optFixHangulFragments").checked,
           applyLawDict: $("optApplyLawDict").checked,
+          fixHangulFragments: $("optFixHangulFragments").checked,
         });
 
         $("output").value = cleaned;
@@ -302,18 +390,20 @@
         const ok = cleaned.trim().length > 0;
         $("btnDownload").disabled = !ok;
         $("btnCopy").disabled = !ok;
+
         setStatus("완료", "ok");
       }catch(err){
         console.error(err);
         setStatus("실패", "danger");
         alert("추출 중 오류가 발생했습니다.");
       }finally{
-        $("btnExtract").disabled = false;
+        $("btnExtractRange").disabled = false;
+        $("btnExtractChecked").disabled = false;
       }
     }
 
-    // --------- 좌표 기반 줄 재구성 ----------
-    function groupIntoLines(items){
+    // --------- 핵심: gap 기반 공백 복원 ----------
+    function groupIntoLinesWithGap(items){
       const lines = [];
       const yTol = 2.0;
 
@@ -322,57 +412,96 @@
         const x = t[4];
         const y = t[5];
         const str = it.str;
+
         if(!str || !str.trim()) continue;
 
         let line = null;
         for(const L of lines){
-          if(Math.abs(L.y - y) <= yTol){
-            line = L; break;
-          }
+          if(Math.abs(L.y - y) <= yTol){ line = L; break; }
         }
         if(!line){
           line = { y, items: [] };
           lines.push(line);
         }
-        line.items.push({ x, str });
+
+        line.items.push({
+          x,
+          y,
+          str,
+          w: typeof it.width === "number" ? it.width : 0,
+          t
+        });
       }
 
+      // 위→아래
       lines.sort((a,b)=>b.y - a.y);
+
       return lines.map(L=>{
         L.items.sort((a,b)=>a.x - b.x);
-        return L.items.map(i=>i.str).join(" ");
+
+        let out = "";
+        let prev = null;
+
+        for(const cur of L.items){
+          if(!prev){
+            out += cur.str;
+            prev = cur;
+            continue;
+          }
+
+          const prevEnd = prev.x + (prev.w || 0);
+          const gap = cur.x - prevEnd;
+
+          // 글자 크기 추정 (대략)
+          const fs = Math.max(Math.abs(cur.t?.[0] ?? 10), Math.abs(cur.t?.[3] ?? 10), 10);
+
+          // 공백 삽입 임계값: 글자 크기의 0.22배 이상이면 공백
+          // (한글 2022 복사처럼 "적당히" 공백이 들어오도록 보수적으로 설정)
+          if(gap > fs * 0.22) out += " ";
+
+          out += cur.str;
+          prev = cur;
+        }
+
+        return out.trim();
       });
     }
 
-    // --------- 정리 ----------
+    // --------- Cleaning / Formatting ----------
     function cleanText(text, opts){
       text = (text || "").replace(/\r/g, "");
 
+      // (A) 머리말 제거(시험지 패턴)
       if(opts.removeHeaders){
         text = text.replace(/^\s*\d{4}년도.*\(\s*\d+\s*-\s*\d+\s*\)\s*$/gm, "");
         if(!opts.keepSubject){
-          text = text.replace(/^\s*(민법|형법|회계원리|시설개론|공동주택관리.*|부동산학개론)\s*$/gm, "");
+          text = text.replace(/^\s*(민법|형법|회계원리|시설개론|공동주택관리.*|부동산학개론|중개사법령.*)\s*$/gm, "");
         }
       }
 
+      // (B) 과다 빈줄
       text = text.replace(/\n{3,}/g, "\n\n");
-      text = text.replace(/(\w)-\n(\w)/g, "$1$2");
 
+      // (C) 문장 중간 줄바꿈 합치기(구조 라인은 유지)
       text = joinSoftLineBreaks(text);
 
-      // 핵심 변경: “한글 공백 전부 제거” 금지
-      // → “부 동 산”처럼 ‘단일 음절이 연속으로 끊긴 구간’만 붙임
+      // (D) 선택 옵션: "부 동 산 학 개 론" 같은 '조각형'만 붙이기 (매우 보수)
       if(opts.fixHangulFragments){
         text = fixHangulFragmentRuns(text);
       }
 
+      // (E) 공백/기호 정리
       text = normalizeSpaces(text);
+
+      // (F) 문제 포맷: 선지 1줄, ㄱㄴㄷ 줄
       text = formatQuestions(text);
 
+      // (G) 민법 결합어 사전
       if(opts.applyLawDict){
         text = applyLawFixDict(text);
       }
 
+      // (H) 마무리
       text = text.replace(/[ \t]+\n/g, "\n");
       text = text.replace(/\n{3,}/g, "\n\n").trim();
       return text;
@@ -409,6 +538,7 @@
           out.push(cur);
           continue;
         }
+
         out.push(cur + " " + next);
         i++;
       }
@@ -416,42 +546,46 @@
     }
 
     function normalizeSpaces(text){
+      text = text.replace(/[ \t]{2,}/g, " ");
       text = text.replace(/\s+([,.;:!?])/g, "$1");
       text = text.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
-      text = text.replace(/[ \t]{2,}/g, " ");
       text = text.replace(/^\s+/gm, "");
       return text;
     }
 
     function formatQuestions(text){
+      // 문제번호 앞 빈줄
       text = text.replace(/\n(\d+\.)/g, "\n\n$1");
+
+      // ㄱㄴㄷ 줄바꿈
       text = text.replace(/\s*(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ)\.\s*/g, "\n$1. ");
+
+      // 선지 무조건 1줄씩
       text = text.replace(/\s*([①②③④⑤])\s*/g, "\n$1 ");
       text = text.replace(/\n\s*([①②③④⑤])/g, "\n$1");
+
+      // 3줄 이상 빈줄 -> 2줄
       text = text.replace(/\n{3,}/g, "\n\n");
       return text;
     }
 
-    // ✅ 안전하게 “글자 단위로 끊긴 구간”만 붙이기
-    // 예) "부 동 산 학 개 론" → "부동산학개론"
-    // 예) "민법 상" (정상 단어 경계) 같은 건 건드리지 않도록:
-    //     '단일 한글 음절'이 3개 이상 연속되는 패턴에만 적용
+    // 매우 보수적으로: 단일 음절 + 공백이 6회 이상 연속일 때만 붙임
     function fixHangulFragmentRuns(text){
-  // 매우 보수적으로: "한글 1음절 + 공백"이 5회 이상 연속일 때만 붙임
-  // 예) "부 동 산 학 개 론" 같은 경우는 붙이고,
-  //     정상 문장 공백은 거의 건드리지 않음.
-  return text.replace(/(?:[가-힣]\s+){5,}[가-힣]/g, (m) => m.replace(/\s+/g, ""));
-  }
-    
+      return text.replace(/(?:[가-힣]\s+){6,}[가-힣]/g, (m) => m.replace(/\s+/g, ""));
+    }
+
     function applyLawFixDict(text){
       const dict = [
         [/\b물\s*권\b/g, "물권"],
+        [/\b물\s*권\s*행위\b/g, "물권행위"],
+        [/\b물\s*권\s*변동\b/g, "물권변동"],
         [/\b물권\s*적\s*청구권\b/g, "물권적청구권"],
         [/\b물\s*권\s*적\s*청구권\b/g, "물권적청구권"],
         [/\b법률\s*행위\b/g, "법률행위"],
         [/\b의사\s*표시\b/g, "의사표시"],
         [/\b통정\s*허위\s*표시\b/g, "통정허위표시"],
         [/\b소유권이\s*전\b/g, "소유권이전"],
+        [/\b소유권이\s*전등기\s*청구권\b/g, "소유권이전등기청구권"],
         [/\b소유권이\s*전등기청구권\b/g, "소유권이전등기청구권"],
         [/\b소유권이\s*전청구권\b/g, "소유권이전청구권"],
         [/\b중간\s*생략\s*등기\b/g, "중간생략등기"],
