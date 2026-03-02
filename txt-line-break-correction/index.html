@@ -8,16 +8,11 @@
   <style>
     :root{
       --bg:#0b0f19;
-      --panel:#11182a;
-      --panel2:#0f1526;
       --text:#e8eefc;
       --muted:#9fb0d0;
-      --line:#24304f;
       --accent:#6aa6ff;
       --accent2:#7cf3d1;
       --danger:#ff6a8a;
-      --ok:#7cf3d1;
-      --warn:#ffd36a;
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius:16px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -62,18 +57,9 @@
     button.danger{border-color:rgba(255,106,138,.55); background:linear-gradient(180deg, rgba(255,106,138,.18), rgba(255,106,138,.06))}
     button:disabled{opacity:.5;cursor:not-allowed}
 
-    /* ✅ label로 감싼 버튼이 layout 깨지지 않게 */
-    label.filepick{display:inline-flex}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:14px;margin-top:14px;}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
 
-    .grid{
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap:14px;
-      margin-top:14px;
-    }
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-    }
     .card{
       background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.10);
@@ -89,6 +75,7 @@
     }
     .card .head h2{margin:0;font-size:14px}
     .card .body{padding:14px}
+
     .drop{
       border:1.5px dashed rgba(106,166,255,.55);
       border-radius:14px;
@@ -101,69 +88,38 @@
     .drop strong{font-size:13px}
     .drop .hint{color:var(--muted);font-size:12px;line-height:1.4}
     .drop.drag{background:rgba(124,243,209,.10); border-color:rgba(124,243,209,.70)}
-    .file-input{display:none}
-    .list{
-      margin-top:12px;
-      display:flex; flex-direction:column; gap:8px;
-      max-height:340px; overflow:auto; padding-right:4px;
+
+    /* ✅ 중요: display:none 금지. "클릭 가능한 상태"로 화면 밖에 숨기기 */
+    .file-input{
+      position:fixed;
+      left:-9999px;
+      top:auto;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
     }
-    .item{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      padding:10px 10px;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;
-      background:rgba(0,0,0,.15);
-    }
+
+    .list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;padding-right:4px;}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(0,0,0,.15);}
     .item-left{display:flex;align-items:center;gap:10px;min-width:0}
     .item-left label{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer}
-    .fname{
-      font-size:12.5px;
-      color:var(--text);
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      max-width:220px;
-    }
+    .fname{font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}
     .meta{font-size:11px;color:var(--muted)}
-    .pill{
-      font-size:11px; padding:4px 8px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      color:var(--muted);
-      background:rgba(255,255,255,.03);
-      white-space:nowrap;
-    }
+    .pill{font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);background:rgba(255,255,255,.03);white-space:nowrap;}
     .pill.ok{border-color:rgba(124,243,209,.55); color:rgba(124,243,209,.95); background:rgba(124,243,209,.06)}
     .pill.warn{border-color:rgba(255,211,106,.55); color:rgba(255,211,106,.95); background:rgba(255,211,106,.06)}
-    .controls{
-      display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;
-    }
-    .kv{
-      display:flex; flex-wrap:wrap; gap:10px;
-      padding:10px;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;
-      background:rgba(0,0,0,.12);
-    }
+    .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+
+    .kv{display:flex;flex-wrap:wrap;gap:10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(0,0,0,.12);}
     .kv .row{display:flex;align-items:center;gap:10px}
     .kv label{font-size:12px;color:var(--muted)}
-    input[type="number"]{
-      width:110px;
-      background:rgba(0,0,0,.25);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.14);
-      border-radius:10px;
-      padding:8px 10px;
-      font-family:var(--mono);
-      font-size:12px;
-    }
+    input[type="number"]{width:110px;background:rgba(0,0,0,.25);color:var(--text);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:8px 10px;font-family:var(--mono);font-size:12px;}
     input[type="checkbox"]{transform:scale(1.05)}
-    .preview{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:12px;
-    }
-    @media (max-width: 980px){
-      .preview{grid-template-columns:1fr}
-    }
+
+    .preview{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width: 980px){ .preview{grid-template-columns:1fr} }
+
     textarea{
       width:100%;
       min-height:520px;
@@ -180,6 +136,7 @@
     }
     textarea:focus{border-color:rgba(106,166,255,.55)}
     .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
     .status{
       margin-top:10px;
       padding:10px 12px;
@@ -192,24 +149,22 @@
       display:flex; align-items:flex-start; gap:10px;
     }
     .status b{color:var(--text)}
-    .status .dot{
-      width:9px;height:9px;border-radius:50%;
-      margin-top:4px;background:rgba(159,176,208,.8);
-      box-shadow:0 0 0 3px rgba(159,176,208,.15);
-      flex:0 0 auto;
-    }
+    .status .dot{width:9px;height:9px;border-radius:50%;margin-top:4px;background:rgba(159,176,208,.8);box-shadow:0 0 0 3px rgba(159,176,208,.15);flex:0 0 auto;}
     .status.ok .dot{background:rgba(124,243,209,.9); box-shadow:0 0 0 3px rgba(124,243,209,.15)}
     .status.warn .dot{background:rgba(255,211,106,.95); box-shadow:0 0 0 3px rgba(255,211,106,.15)}
     .status.err .dot{background:rgba(255,106,138,.95); box-shadow:0 0 0 3px rgba(255,106,138,.15)}
+
     .small-actions{display:flex;gap:10px;flex-wrap:wrap}
     .footer-note{margin-top:10px;color:var(--muted);font-size:11.5px;line-height:1.5}
   </style>
 
-  <!-- JSZip (client-side zip) -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 
 <body>
+  <!-- ✅ input을 body 직후에 두면 label/스크립트 호환성이 더 좋아짐 -->
+  <input class="file-input" type="file" id="fileInput" accept=".txt,text/plain" multiple />
+
   <div class="wrap">
     <header>
       <div>
@@ -218,12 +173,9 @@
           TXT(복사/추출로 생긴 문장 중간 줄바꿈)를 규칙 기반으로 합치고, 문제 번호/보기 등 “구조 줄바꿈”은 유지합니다.
         </div>
       </div>
-
       <div class="top-actions">
-        <!-- ✅ label + for 로 연결: input.click() 막히는 환경에서도 100% 작동 -->
-        <label class="filepick" for="fileInput">
-          <button class="good" type="button" id="btnSelect"><span>📄</span>파일 선택</button>
-        </label>
+        <!-- ✅ label 대신 JS로 확실히 여는 버튼 -->
+        <button class="good" type="button" id="btnSelect"><span>📄</span>파일 선택</button>
 
         <button class="primary" id="btnFix" disabled><span>✨</span>수정</button>
         <button class="primary" id="btnZip" disabled><span>📦</span>ZIP 다운로드</button>
@@ -232,7 +184,6 @@
     </header>
 
     <div class="grid">
-      <!-- Left: upload + list + options -->
       <div class="card">
         <div class="head">
           <h2>파일</h2>
@@ -242,13 +193,10 @@
           <div class="drop" id="drop" title="클릭해서 파일 선택도 가능합니다.">
             <strong>여기에 TXT 파일을 드래그앤드롭</strong>
             <div class="hint">여러 파일을 한 번에 넣을 수 있습니다. (일괄 수정 → ZIP)</div>
-            <input class="file-input" type="file" id="fileInput" accept=".txt,text/plain" multiple />
           </div>
 
           <div class="controls">
-            <label class="filepick" for="fileInput">
-              <button type="button" id="btnSelect2"><span>➕</span>추가 선택</button>
-            </label>
+            <button type="button" id="btnSelect2"><span>➕</span>추가 선택</button>
             <button id="btnRemoveSelected" class="danger" disabled><span>🗑️</span>선택 제거</button>
           </div>
 
@@ -256,10 +204,7 @@
 
           <div class="status" id="statusBox">
             <div class="dot"></div>
-            <div>
-              <b>대기</b><br/>
-              TXT 파일을 추가하세요.
-            </div>
+            <div><b>대기</b><br/>TXT 파일을 추가하세요.</div>
           </div>
 
           <div class="footer-note">
@@ -268,7 +213,6 @@
         </div>
       </div>
 
-      <!-- Right: preview -->
       <div class="card">
         <div class="head">
           <h2>미리보기</h2>
@@ -310,33 +254,12 @@
 
 <script>
 (() => {
-  /**
-   * ✅ 가장 중요한 수정:
-   * 1) 페이지 전체 dragover/drop 기본동작 차단 → "드롭하면 브라우저가 파일 열어버림" 방지
-   * 2) 파일 선택은 label-for 방식 → input.click() 차단 이슈 회피
-   */
+  // ✅ 페이지 전체: 드롭하면 브라우저가 파일 열어버리는 기본동작 차단
+  window.addEventListener("dragover", (e) => e.preventDefault(), { passive:false });
+  window.addEventListener("drop", (e) => e.preventDefault(), { passive:false });
 
-  // ✅ 브라우저 기본 동작(파일 열기) 방지: 페이지 전체에 적용
-  window.addEventListener("dragover", (e) => {
-    e.preventDefault();
-  }, { passive: false });
+  const state = { files: [], selected: new Set(), lastSingleId: null };
 
-  window.addEventListener("drop", (e) => {
-    e.preventDefault();
-  }, { passive: false });
-
-  /** -----------------------------
-   *  State
-   * ------------------------------ */
-  const state = {
-    files: [],              // { id, file, name, size, text, fixedText }
-    selected: new Set(),    // ids
-    lastSingleId: null      // for preview/download
-  };
-
-  /** -----------------------------
-   *  DOM
-   * ------------------------------ */
   const $ = (id) => document.getElementById(id);
 
   const drop = $("drop");
@@ -345,6 +268,8 @@
   const fileCountPill = $("fileCountPill");
   const statusBox = $("statusBox");
 
+  const btnSelect = $("btnSelect");
+  const btnSelect2 = $("btnSelect2");
   const btnFix = $("btnFix");
   const btnZip = $("btnZip");
   const btnClear = $("btnClear");
@@ -359,9 +284,6 @@
   const optSmartNoSpace = $("optSmartNoSpace");
   const optMaxJoin = $("optMaxJoin");
 
-  /** -----------------------------
-   *  Helpers
-   * ------------------------------ */
   const uid = () => Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
 
   function fmtBytes(n){
@@ -370,18 +292,18 @@
     return (n/(1024*1024)).toFixed(2) + " MB";
   }
 
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (m) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[m]));
+  }
+
   function setStatus(kind, title, msg){
     statusBox.className = "status" + (kind ? (" " + kind) : "");
     statusBox.innerHTML = `
       <div class="dot"></div>
       <div><b>${escapeHtml(title)}</b><br/>${escapeHtml(msg)}</div>
     `;
-  }
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, (m) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-    }[m]));
   }
 
   function downloadBlob(filename, blob){
@@ -395,42 +317,34 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  /** -----------------------------
-   *  Core rule: line break correction
-   * ------------------------------ */
-
+  // ---------- line break logic (원본 유지) ----------
   const RE_BLOCK_START = new RegExp(
     [
-      "^\\s*\\d+\\.",                // 1. 2. 10.
-      "^\\s*[①-⑳]\\s*",             // ① ② ...
-      "^\\s*[ㄱ-ㅎ]\\.",             // ㄱ.
-      "^\\s*[ㄱ-ㅎ]\\s",             // ㄱ (space)
-      "^\\s*[A-Z]\\s*형",            // A형
-      "^\\s*\\d{4}년도\\s",           // 2020년도 ...
+      "^\\s*\\d+\\.",
+      "^\\s*[①-⑳]\\s*",
+      "^\\s*[ㄱ-ㅎ]\\.",
+      "^\\s*[ㄱ-ㅎ]\\s",
+      "^\\s*[A-Z]\\s*형",
+      "^\\s*\\d{4}년도\\s",
       "^\\s*민법\\s*$",
       "^\\s*형법\\s*$",
       "^\\s*부동산\\s*$",
       "^\\s*소멸시효\\s*$",
-      "^\\s*\\[",                    // [ ... ]
-      "^\\s*\\("                     // ( ... )
+      "^\\s*\\[",
+      "^\\s*\\("
     ].join("|"),
     "u"
   );
-
   const RE_HEADER_LINE = /^\\s*\\d{4}년도.+\\(\\s*\\d+\\s*-\\s*\\d+\\s*\\)\\s*$/u;
 
   function shouldKeepNewline(prevLine, nextLine){
-    const prev = prevLine ?? "";
-    const next = nextLine ?? "";
-    const p = prev.trim();
-    const n = next.trim();
-
+    const p = (prevLine ?? "").trim();
+    const n = (nextLine ?? "").trim();
     if(p === "" || n === "") return true;
     if(RE_HEADER_LINE.test(p)) return true;
     if(RE_BLOCK_START.test(n)) return true;
     if(/[.!?]["')\\]]?$/u.test(p)) return true;
     if(p.length <= 8 && /^\\d+\\./u.test(n)) return true;
-
     return false;
   }
 
@@ -455,7 +369,6 @@
     if(isHangul(prevLastToken) && isHangul(nextFirstToken)){
       if(prevLastToken.length <= 2 && nextFirstToken.length <= 2) return "";
     }
-
     return " ";
   }
 
@@ -464,20 +377,15 @@
     let maxJoin = parseInt(optMaxJoin.value, 10);
     if(!Number.isFinite(maxJoin) || maxJoin < 1) maxJoin = 12;
 
-    const normalized = String(text)
-      .replace(/\\r\\n/g, "\\n")
-      .replace(/\\r/g, "\\n");
-
+    const normalized = String(text).replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
     const lines = normalized.split("\\n");
+
     const out = [];
     let buf = "";
     let joinCount = 0;
 
     function flush(){
-      if(buf !== ""){
-        out.push(buf);
-        buf = "";
-      }
+      if(buf !== ""){ out.push(buf); buf = ""; }
       joinCount = 0;
     }
 
@@ -486,12 +394,8 @@
       const next = (i+1 < lines.length) ? lines[i+1] : null;
 
       if(buf === ""){
-        if(line.trim()===""){
-          if(keepBlank) out.push("");
-          continue;
-        }
+        if(line.trim()===""){ if(keepBlank) out.push(""); continue; }
         buf = line.trimEnd();
-        joinCount = 0;
         continue;
       }
 
@@ -504,14 +408,12 @@
       if(shouldKeepNewline(buf, line)){
         flush();
         buf = line.trimEnd();
-        joinCount = 0;
         continue;
       }
 
       if(joinCount >= maxJoin){
         flush();
         buf = line.trimEnd();
-        joinCount = 0;
         continue;
       }
 
@@ -519,25 +421,19 @@
       buf = buf.replace(/\\s+$/u, "") + joiner + line.replace(/^\\s+/u, "");
       joinCount += 1;
 
-      if(next && shouldKeepNewline(buf, next)){
-        flush();
-      }
+      if(next && shouldKeepNewline(buf, next)) flush();
     }
 
     flush();
     return out.join("\\n").replace(/\\n{3,}/g, "\\n\\n");
   }
+  // ---------- /line break logic ----------
 
-  /** -----------------------------
-   *  UI rendering
-   * ------------------------------ */
   function refreshUI(){
     fileCountPill.textContent = state.files.length + "개";
-
     btnClear.disabled = state.files.length === 0;
     btnFix.disabled = state.files.length === 0;
     btnZip.disabled = state.files.length === 0;
-
     btnRemoveSelected.disabled = state.selected.size === 0;
 
     if(state.files.length === 1){
@@ -619,16 +515,12 @@
 
     taOriginal.value = f.text ?? "";
     taFixed.value = (typeof f.fixedText === "string") ? f.fixedText : "";
-
     btnDownloadOne.disabled = !(typeof f.fixedText === "string");
     if(!silent) refreshUI();
   }
 
-  /** -----------------------------
-   *  File ingest
-   * ------------------------------ */
   async function addFiles(fileListLike){
-    const files = Array.from(fileListLike || []).filter(f => f);
+    const files = Array.from(fileListLike || []).filter(Boolean);
     if(files.length === 0) return;
 
     const txtFiles = files.filter(f => (f.name || "").toLowerCase().endsWith(".txt") || (f.type || "").startsWith("text/"));
@@ -650,32 +542,20 @@
     }
 
     state.files.forEach(f => state.selected.add(f.id));
-
     state.lastSingleId = state.files[state.files.length - txtFiles.length].id;
     showPreview(state.lastSingleId, true);
-
     refreshUI();
   }
 
-  /** -----------------------------
-   *  Actions
-   * ------------------------------ */
   function runFix(){
     if(state.files.length === 0) return;
-
-    const targetIds = (state.selected.size > 0)
-      ? Array.from(state.selected)
-      : state.files.map(f => f.id);
-
+    const targetIds = (state.selected.size > 0) ? Array.from(state.selected) : state.files.map(f => f.id);
     for(const id of targetIds){
       const f = state.files.find(x => x.id === id);
       if(!f) continue;
       f.fixedText = fixLineBreaks(f.text || "");
     }
-
-    if(state.lastSingleId){
-      showPreview(state.lastSingleId, true);
-    }
+    if(state.lastSingleId) showPreview(state.lastSingleId, true);
     refreshUI();
   }
 
@@ -683,24 +563,19 @@
     if(!state.lastSingleId) return;
     const f = state.files.find(x => x.id === state.lastSingleId);
     if(!f || typeof f.fixedText !== "string") return;
-
     const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
     downloadBlob(outName, new Blob([f.fixedText], {type:"text/plain;charset=utf-8"}));
   }
 
   async function downloadZip(){
     if(state.files.length === 0) return;
-
-    const needFix = state.files.some(f => typeof f.fixedText !== "string");
-    if(needFix) runFix();
+    if(state.files.some(f => typeof f.fixedText !== "string")) runFix();
 
     const zip = new JSZip();
     for(const f of state.files){
       const fixed = (typeof f.fixedText === "string") ? f.fixedText : (f.text || "");
-      const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
-      zip.file(outName, fixed);
+      zip.file(f.name.replace(/\\.txt$/i, "") + "_fixed.txt", fixed);
     }
-
     const blob = await zip.generateAsync({type:"blob"});
     const stamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
     downloadBlob(`txt_linebreak_fixed_${stamp}.zip`, blob);
@@ -727,9 +602,11 @@
     refreshUI();
   }
 
-  /** -----------------------------
-   *  Events
-   * ------------------------------ */
+  // ✅ 파일 선택: label 의존 X, 직접 click으로 확실히 열기
+  btnSelect.addEventListener("click", () => fileInput.click());
+  btnSelect2.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("click", () => fileInput.click());
+
   fileInput.addEventListener("change", async (e) => {
     await addFiles(e.target.files);
     fileInput.value = "";
@@ -743,15 +620,11 @@
 
   [optKeepBlank, optSmartNoSpace, optMaxJoin].forEach(el => {
     el.addEventListener("change", () => {
-      const fixedCount = state.files.filter(f => typeof f.fixedText === "string").length;
-      if(fixedCount > 0) runFix();
+      if(state.files.some(f => typeof f.fixedText === "string")) runFix();
     });
   });
 
-  // ✅ 드롭 영역 클릭 시에도 파일 선택 열기(UX + 디버깅)
-  drop.addEventListener("click", () => fileInput.click());
-
-  // Drag & drop (drop 영역에서도 확실히 기본동작 차단)
+  // Drag & drop (영역에서도 기본동작 차단)
   ["dragenter","dragover"].forEach(evt => {
     drop.addEventListener(evt, (e) => {
       e.preventDefault();
