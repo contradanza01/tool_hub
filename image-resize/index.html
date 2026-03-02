@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Image Resize</title>
+
+<style>
+
+body{
+font-family:Arial;
+max-width:800px;
+margin:auto;
+padding:40px;
+}
+
+canvas{
+max-width:100%;
+border:1px solid #ddd;
+margin-top:20px;
+}
+
+input{
+margin-top:10px;
+}
+
+button{
+margin-top:10px;
+padding:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<a href="../">← Tool Hub</a>
+
+<h1>Image Resize</h1>
+
+<input type="file" id="imageInput">
+
+<br>
+
+Width
+<input type="number" id="width" placeholder="width">
+
+Height
+<input type="number" id="height" placeholder="height">
+
+<br>
+
+<button onclick="resizeImage()">Resize</button>
+<button onclick="downloadImage()">Download</button>
+
+<br>
+
+<canvas id="canvas"></canvas>
+
+<script>
+
+let img = new Image()
+
+document.getElementById("imageInput").addEventListener("change",function(e){
+
+const file = e.target.files[0]
+
+const reader = new FileReader()
+
+reader.onload = function(event){
+
+img.onload = function(){
+
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
+
+canvas.width = img.width
+canvas.height = img.height
+
+ctx.drawImage(img,0,0)
+
+}
+
+img.src = event.target.result
+
+}
+
+reader.readAsDataURL(file)
+
+})
+
+function resizeImage(){
+
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
+
+const w = document.getElementById("width").value
+const h = document.getElementById("height").value
+
+canvas.width = w
+canvas.height = h
+
+ctx.drawImage(img,0,0,w,h)
+
+}
+
+function downloadImage(){
+
+const canvas = document.getElementById("canvas")
+
+const link = document.createElement("a")
+
+link.download = "resized.png"
+
+link.href = canvas.toDataURL()
+
+link.click()
+
+}
+
+</script>
+
+</body>
+</html>
