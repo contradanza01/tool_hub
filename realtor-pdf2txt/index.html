@@ -1,631 +1,415 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDF → TXT (Cleaner)</title>
+  <title>PDF → Text Cleaner</title>
   <style>
-    body{
-      font-family: Arial, -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
-      max-width: 1180px;
-      margin: auto;
-      padding: 26px 16px;
-      line-height: 1.45;
-      color:#111;
-    }
-    a.back{ display:inline-block; margin-bottom:14px; text-decoration:none; color:#111; }
-    h1{ margin: 0 0 8px; font-size:22px; }
-    .sub{ color:#444; font-size:14px; margin-bottom:16px; }
-    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-    input[type="file"]{
-      padding:8px;
-      border:1px solid #ddd;
-      border-radius:10px;
-      background:#fafafa;
-    }
-    button{
-      padding:10px 14px;
-      border:1px solid #ddd;
-      border-radius:12px;
-      background:white;
-      cursor:pointer;
-    }
-    button.primary{ background:#111; color:#fff; border-color:#111; }
-    button:hover{ border-color:#999; }
-    button:disabled{ opacity:.45; cursor:not-allowed; }
-    .panel{
-      margin-top:14px;
-      padding:12px;
-      border:1px solid #e5e5e5;
-      border-radius:14px;
-      background:#fcfcfc;
-    }
-    .status{ font-size:13px; color:#333; }
-    .ok{ color:#0a7a20; }
-    .danger{ color:#b00020; }
-    .opt{
-      display:flex; flex-wrap:wrap; gap:14px;
-      margin-top:10px; font-size:14px;
-    }
-    .opt label{ display:flex; gap:8px; align-items:center; }
-    .range{
-      display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-      margin-top:10px; font-size:14px;
-    }
-    .range input{
-      width:84px;
-      padding:8px 10px;
-      border:1px solid #ddd;
-      border-radius:10px;
-    }
-    .hint{ font-size:13px; color:#555; margin-top:8px; }
-    textarea{
-      width:100%;
-      height: 460px;
-      margin-top:12px;
-      font-size:14px;
-      padding:12px;
-      border:1px solid #ddd;
-      border-radius:14px;
-      resize: vertical;
-      white-space: pre;
-    }
-
-    /* thumbnails */
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap:12px;
-      margin-top:12px;
-    }
-    .thumb{
-      border:1px solid #ddd;
-      border-radius:12px;
-      background:white;
-      padding:10px;
-      cursor:pointer;
-      user-select:none;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .thumb:hover{ border-color:#aaa; }
-    .thumb.selected{
-      border-color:#111;
-      box-shadow: 0 0 0 2px rgba(0,0,0,.08);
-    }
-    .thumb canvas{
-      width:100%;
-      height:auto;
-      display:block;
-      border-radius:8px;
-      background:#f3f3f3;
-    }
-    .thumb .meta{
-      margin-top:8px;
-      font-size:12px;
-      color:#333;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-    }
-    .small{ font-size:12px; color:#666; }
-    .hr{ height:1px; background:#eee; margin:14px 0; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Arial,sans-serif;max-width:1100px;margin:0 auto;padding:24px;line-height:1.4}
+    h1{margin:0 0 12px}
+    .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+    .card{border:1px solid #ddd;border-radius:12px;padding:14px;background:#fff}
+    .left{flex:1 1 420px;min-width:320px}
+    .right{flex:1 1 520px;min-width:320px}
+    label{display:block;font-size:13px;margin:10px 0 6px;color:#333}
+    input[type="number"], input[type="text"]{width:140px;padding:8px;border:1px solid #ccc;border-radius:8px}
+    input[type="file"]{margin-top:6px}
+    button{padding:10px 12px;border:1px solid #ccc;border-radius:10px;background:#f7f7f7;cursor:pointer}
+    button.primary{background:#111;color:#fff;border-color:#111}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+    textarea{width:100%;height:420px;margin-top:10px;font-size:14px;padding:10px;border:1px solid #ccc;border-radius:10px;white-space:pre-wrap}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    a.back{text-decoration:none;color:#111;border:1px solid #ddd;padding:8px 10px;border-radius:10px}
+    .previewWrap{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+    canvas{border:1px solid #ddd;border-radius:10px;max-width:100%;height:auto}
+    .small{font-size:12px;color:#444}
+    .toggle{display:flex;gap:8px;align-items:center;margin-top:8px}
   </style>
 </head>
-
 <body>
-  <a class="back" href="../">← Tool Hub</a>
-
-  <h1>PDF → TXT (Cleaner)</h1>
-  <div class="sub">
-    한글 PDF(한글 2022/Acrobat에서 복사)처럼 공백을 최대한 복원하도록
-    <b>좌표 기반 줄 구성 + gap(간격) 기반 공백 삽입</b>을 적용합니다.
-    <br/>• 선지(①~⑤)는 <b>무조건 1줄씩</b> 출력됩니다.
-    <br/>• 스캔 PDF(이미지 PDF)는 OCR이 필요합니다(이 페이지는 OCR 아님).
+  <div class="topbar">
+    <a class="back" href="../">← Tool Hub</a>
+    <div class="small">Client-only / GitHub Pages</div>
   </div>
 
+  <h1>PDF → Text Cleaner</h1>
   <div class="row">
-    <input type="file" id="pdfFile" accept="application/pdf" />
-    <button class="primary" id="btnLoad" onclick="loadPdf()">Load & Preview</button>
-    <button id="btnExtractRange" onclick="extractByRange()" disabled>Extract (Range)</button>
-    <button id="btnExtractChecked" onclick="extractByCheckedPages()" disabled>Extract (Checked)</button>
-    <button id="btnDownload" onclick="downloadTxt()" disabled>Download TXT</button>
-    <button id="btnCopy" onclick="copyToClipboard()" disabled>Copy</button>
-  </div>
+    <div class="card left">
+      <label>PDF 업로드</label>
+      <input type="file" id="pdfFile" accept="application/pdf" />
 
-  <div class="opt">
-    <label><input type="checkbox" id="optRemoveHeaders" checked /> 시험지 머리말(“YYYY년도 … (13-2)”) 삭제</label>
-    <label><input type="checkbox" id="optKeepSubject" /> 과목명(예: 민법) 유지</label>
-    <label><input type="checkbox" id="optApplyLawDict" checked /> 민법 결합어 사전 교정(물권/법률행위 등)</label>
-    <label><input type="checkbox" id="optFixHangulFragments" /> “부 동 산” 같은 조각형(연속 6음절+)만 붙이기</label>
-  </div>
+      <label>미리보기 페이지</label>
+      <div class="previewWrap">
+        <div>
+          <input type="number" id="previewPage" min="1" value="1" />
+          <button id="btnPreview" onclick="renderPreview()" disabled>미리보기</button>
+          <div class="hint" id="pdfInfo">PDF를 올리면 페이지 수가 표시됩니다.</div>
+        </div>
+        <canvas id="previewCanvas"></canvas>
+      </div>
 
-  <div class="panel">
-    <div class="status" id="status">상태: PDF를 선택하고 Load & Preview를 누르세요.</div>
+      <label>텍스트 추출 페이지 범위</label>
+      <div class="previewWrap">
+        <div>
+          <div class="small">Start</div>
+          <input type="number" id="startPage" min="1" value="1" />
+        </div>
+        <div>
+          <div class="small">End</div>
+          <input type="number" id="endPage" min="1" value="1" />
+        </div>
+      </div>
 
-    <div class="range">
-      <span>페이지 범위:</span>
-      <label>Start <input type="number" id="rangeStart" min="1" value="1"></label>
-      <label>End <input type="number" id="rangeEnd" min="1" value="1"></label>
-      <span id="rangeHint" class="status"></span>
-      <button id="btnSetCheckedFromRange" onclick="setCheckedFromRange()" disabled>Check = Range</button>
-      <button id="btnClearChecked" onclick="clearChecked()" disabled>Clear Checks</button>
+      <label>과목/키워드로 “포함된 줄만” 남기기 (선택)</label>
+      <input type="text" id="keepKeyword" placeholder="예: 민법 (비우면 전체)" />
+
+      <div class="toggle">
+        <input type="checkbox" id="autoColumns" checked />
+        <label style="margin:0;">2단(컬럼) 자동 분리(권장)</label>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="btnExtract" onclick="extractText()" disabled>Extract + Clean</button>
+        <button id="btnDownload" onclick="downloadTxt()" disabled>Download TXT</button>
+        <button onclick="copyToClipboard()" id="btnCopy" disabled>Copy</button>
+      </div>
+
+      <div class="hint">
+        • 2단 PDF(좌/우 컬럼)는 “컬럼 자동 분리”를 켜야 순서가 덜 섞입니다.<br/>
+        • 스캔본(이미지 PDF)은 여기서 텍스트가 잘 안 나옵니다(OCR 버전 필요).
+      </div>
     </div>
 
-    <div class="hr"></div>
-
-    <div class="hint">
-      미리보기: 썸네일을 클릭하면 체크됩니다(checked 추출 가능). 큰 PDF는 성능상 <b>최대 30페이지</b>까지만 미리보기.
+    <div class="card right">
+      <label>결과</label>
+      <textarea id="output" placeholder="여기에 정리된 텍스트가 나옵니다."></textarea>
     </div>
-    <div id="previewArea"><div class="small">로드 후 표시됩니다.</div></div>
   </div>
 
-  <textarea id="output" placeholder="추출/정리된 텍스트가 여기에 표시됩니다."></textarea>
-  <div class="hint">
-    팁: 공백이 과하게 붙으면 “조각형만 붙이기” 옵션을 끄고, 공백이 과하게 떨어지면 켜보세요.
-  </div>
-
+  <!-- pdf.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
+    // pdf.js worker 설정 (CDN)
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+    let pdfDoc = null;
+
     const $ = (id) => document.getElementById(id);
 
-    let pdfDoc = null;
-    let pdfData = null;
-    let checkedPages = new Set(); // numbers
-    const MAX_THUMBS = 30;
-
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-    }
-    function setStatus(msg, cls=""){
-      $("status").innerHTML = `상태: <span class="${cls}">${escapeHtml(msg)}</span>`;
-    }
-
-    function enableAfterLoad(){
-      $("btnExtractRange").disabled = false;
-      $("btnExtractChecked").disabled = false;
-      $("btnSetCheckedFromRange").disabled = false;
-      $("btnClearChecked").disabled = false;
-    }
-
-    function updateRangeHint(){
-      if(!pdfDoc){ $("rangeHint").textContent = ""; return; }
-
-      const s = parseInt($("rangeStart").value, 10);
-      const e = parseInt($("rangeEnd").value, 10);
-
-      if(Number.isNaN(s) || Number.isNaN(e)){
-        $("rangeHint").innerHTML = `<span class="danger">숫자를 입력</span>`;
-        return;
-      }
-      if(s < 1 || e < 1 || s > pdfDoc.numPages || e > pdfDoc.numPages){
-        $("rangeHint").innerHTML = `<span class="danger">1 ~ ${pdfDoc.numPages}</span>`;
-        return;
-      }
-      if(s > e){
-        $("rangeHint").innerHTML = `<span class="danger">Start ≤ End</span>`;
-        return;
-      }
-      $("rangeHint").innerHTML = `<span class="ok">${s}~${e} 페이지</span>`;
-    }
-
-    $("rangeStart").addEventListener("input", updateRangeHint);
-    $("rangeEnd").addEventListener("input", updateRangeHint);
-
-    async function loadPdf(){
+    $("pdfFile").addEventListener("change", async () => {
       const file = $("pdfFile").files[0];
-      if(!file){ alert("PDF를 업로드하세요"); return; }
+      if (!file) return;
 
-      $("btnLoad").disabled = true;
-      $("btnExtractRange").disabled = true;
-      $("btnExtractChecked").disabled = true;
-      $("btnDownload").disabled = true;
-      $("btnCopy").disabled = true;
-      $("output").value = "";
+      const buf = await file.arrayBuffer();
+      pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
 
-      pdfDoc = null; pdfData = null;
-      checkedPages = new Set();
+      $("pdfInfo").textContent = `총 ${pdfDoc.numPages}페이지`;
+      $("previewPage").max = pdfDoc.numPages;
+      $("startPage").max = pdfDoc.numPages;
+      $("endPage").max = pdfDoc.numPages;
 
-      try{
-        setStatus("PDF 로드 중...");
-        pdfData = await file.arrayBuffer();
-        pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      $("startPage").value = 1;
+      $("endPage").value = pdfDoc.numPages;
+      $("previewPage").value = 1;
 
-        $("rangeStart").value = 1;
-        $("rangeEnd").value = pdfDoc.numPages;
-        $("rangeStart").max = pdfDoc.numPages;
-        $("rangeEnd").max = pdfDoc.numPages;
-        updateRangeHint();
+      $("btnPreview").disabled = false;
+      $("btnExtract").disabled = false;
 
-        await renderThumbnails(pdfDoc);
+      await renderPreview();
+    });
 
-        enableAfterLoad();
-        setStatus(`로드 완료 (총 ${pdfDoc.numPages}페이지)`, "ok");
-      }catch(err){
-        console.error(err);
-        setStatus("로드 실패", "danger");
-        alert("로드/미리보기 중 오류가 발생했습니다.");
-      }finally{
-        $("btnLoad").disabled = false;
-      }
+    async function renderPreview() {
+      if (!pdfDoc) return;
+      const p = clampInt($("previewPage").value, 1, pdfDoc.numPages);
+      $("previewPage").value = p;
+
+      const page = await pdfDoc.getPage(p);
+      const viewport = page.getViewport({ scale: 1.3 });
+
+      const canvas = $("previewCanvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
     }
 
-    async function renderThumbnails(pdf){
-      const wrap = document.createElement("div");
-      wrap.className = "grid";
-      $("previewArea").innerHTML = "";
-      $("previewArea").appendChild(wrap);
-
-      const count = Math.min(pdf.numPages, MAX_THUMBS);
-
-      for(let p=1; p<=count; p++){
-        const card = document.createElement("div");
-        card.className = "thumb";
-        card.dataset.page = String(p);
-
-        const canvas = document.createElement("canvas");
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.innerHTML = `<span>Page ${p}</span><span class="small">click to check</span>`;
-
-        card.appendChild(canvas);
-        card.appendChild(meta);
-        wrap.appendChild(card);
-
-        card.addEventListener("click", () => toggleCheck(p, card));
-
-        const page = await pdf.getPage(p);
-        const viewport = page.getViewport({ scale: 0.35 });
-        const ctx = canvas.getContext("2d");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-      }
-
-      if(pdf.numPages > count){
-        const note = document.createElement("div");
-        note.className = "hint";
-        note.textContent = `미리보기는 성능상 ${count}페이지만 표시됩니다. 범위 입력으로 전체 페이지를 선택해 처리하세요.`;
-        $("previewArea").appendChild(note);
-      }
+    function clampInt(v, min, max) {
+      const n = parseInt(v, 10);
+      if (Number.isNaN(n)) return min;
+      return Math.max(min, Math.min(max, n));
     }
 
-    function toggleCheck(pageNum, cardEl){
-      if(checkedPages.has(pageNum)){
-        checkedPages.delete(pageNum);
-        cardEl.classList.remove("selected");
-      }else{
-        checkedPages.add(pageNum);
-        cardEl.classList.add("selected");
-      }
-      setStatus(`체크됨: ${checkedPages.size}페이지`, checkedPages.size ? "ok" : "");
-    }
-
-    function clearChecked(){
-      checkedPages.clear();
-      document.querySelectorAll(".thumb.selected").forEach(el => el.classList.remove("selected"));
-      setStatus("체크 해제됨");
-    }
-
-    function setCheckedFromRange(){
-      if(!pdfDoc) return;
-      const s = parseInt($("rangeStart").value, 10);
-      const e = parseInt($("rangeEnd").value, 10);
-      if(Number.isNaN(s) || Number.isNaN(e) || s<1 || e<1 || s>e || e>pdfDoc.numPages){
-        alert("범위를 올바르게 입력하세요.");
+    async function extractText() {
+      if (!pdfDoc) {
+        alert("PDF를 먼저 업로드하세요.");
         return;
       }
 
-      checkedPages.clear();
+      const start = clampInt($("startPage").value, 1, pdfDoc.numPages);
+      const end = clampInt($("endPage").value, 1, pdfDoc.numPages);
+      $("startPage").value = start;
+      $("endPage").value = end;
 
-      // 썸네일로 표시된 페이지(최대 30)만 시각적으로 체크 표시
-      document.querySelectorAll(".thumb").forEach(el=>{
-        const p = parseInt(el.dataset.page, 10);
-        if(p >= s && p <= e){
-          checkedPages.add(p);
-          el.classList.add("selected");
-        }else{
-          el.classList.remove("selected");
+      if (start > end) {
+        alert("Start가 End보다 클 수 없습니다.");
+        return;
+      }
+
+      const keepKeyword = $("keepKeyword").value.trim();
+      const useColumns = $("autoColumns").checked;
+
+      $("btnExtract").disabled = true;
+      $("btnExtract").textContent = "Processing...";
+
+      let out = "";
+
+      for (let i = start; i <= end; i++) {
+        const page = await pdfDoc.getPage(i);
+        const textContent = await page.getTextContent({ disableCombineTextItems: false });
+
+        // 위치 기반으로 읽기 순서 재구성
+        const pageText = reconstructTextFromItems(textContent.items, { useColumns });
+
+        out += pageText + "\n\n";
+      }
+
+      out = cleanText(out, keepKeyword);
+
+      $("output").value = out.trim() + "\n";
+      $("btnDownload").disabled = false;
+      $("btnCopy").disabled = false;
+
+      $("btnExtract").disabled = false;
+      $("btnExtract").textContent = "Extract + Clean";
+    }
+
+    function reconstructTextFromItems(items, { useColumns }) {
+      // items: { str, transform, width, height, fontName }
+      // transform: [a,b,c,d,e,f] 에서 e=x, f=y
+      const chars = items
+        .filter(it => it.str && it.str.trim().length > 0)
+        .map(it => {
+          const x = it.transform[4];
+          const y = it.transform[5];
+          return { s: it.str, x, y, w: it.width || 0 };
+        });
+
+      if (chars.length === 0) return "";
+
+      // y는 위로 갈수록 큼(대개). 라인 분리를 위해 y 기준 내림차순 정렬.
+      // 컬럼 분리(2단) 옵션
+      if (useColumns) {
+        const xs = chars.map(c => c.x).sort((a,b)=>a-b);
+        const minX = xs[0], maxX = xs[xs.length-1];
+        const midX = (minX + maxX) / 2;
+
+        // 오른쪽에 충분히 많은 텍스트가 있으면 2단으로 가정
+        const left = chars.filter(c => c.x < midX);
+        const right = chars.filter(c => c.x >= midX);
+
+        const leftRatio = left.length / chars.length;
+        const rightRatio = right.length / chars.length;
+
+        const isTwoColumn = (leftRatio > 0.25 && rightRatio > 0.25);
+
+        if (isTwoColumn) {
+          const leftText = reconstructOneColumn(left);
+          const rightText = reconstructOneColumn(right);
+          // 보통 시험지 2단은 왼쪽 컬럼 먼저 읽고 오른쪽 읽는 편이 안정적
+          return (leftText + "\n\n" + rightText).trim();
         }
+      }
+
+      return reconstructOneColumn(chars).trim();
+    }
+
+    function reconstructOneColumn(chars) {
+      // 1) y 기준 라인 그룹핑
+      // y 간격 임계값: 대략 글자 높이 대신 경험치로 2.5~3.5 정도가 잘 먹힘.
+      // PDF마다 다르니 “동일 라인” 판정은 y 차이가 작으면 같은 줄로.
+      const sorted = chars.slice().sort((a,b) => {
+        // y 내림차순(위→아래), x 오름차순(좌→우)
+        if (Math.abs(b.y - a.y) > 1.0) return b.y - a.y;
+        return a.x - b.x;
       });
 
-      // 30페이지 초과 범위는 체크셋에는 넣지 않음(미리보기 제한 때문)
-      // 대신 Range 추출을 사용하면 됨.
-      setStatus(`체크=범위 적용(미리보기 내): ${checkedPages.size}페이지`, checkedPages.size ? "ok" : "");
-    }
-
-    // ---- Extract paths ----
-    async function extractByRange(){
-      if(!pdfDoc) { alert("먼저 Load & Preview"); return; }
-      const s = parseInt($("rangeStart").value, 10);
-      const e = parseInt($("rangeEnd").value, 10);
-      if(Number.isNaN(s) || Number.isNaN(e) || s<1 || e<1 || s>e || e>pdfDoc.numPages){
-        alert("페이지 범위를 올바르게 입력하세요.");
-        return;
-      }
-      await extractPages([...Array(e - s + 1)].map((_,i)=>s+i), `범위 ${s}~${e}`);
-    }
-
-    async function extractByCheckedPages(){
-      if(!pdfDoc) { alert("먼저 Load & Preview"); return; }
-      if(checkedPages.size === 0){
-        alert("썸네일을 클릭해 페이지를 체크하거나, Check=Range를 사용하세요.");
-        return;
-      }
-      const pages = Array.from(checkedPages).sort((a,b)=>a-b);
-      await extractPages(pages, `체크 ${pages[0]}~${pages[pages.length-1]} (${pages.length}p)`);
-    }
-
-    async function extractPages(pages, label){
-      $("btnExtractRange").disabled = true;
-      $("btnExtractChecked").disabled = true;
-      $("btnDownload").disabled = true;
-      $("btnCopy").disabled = true;
-      $("output").value = "";
-
-      try{
-        setStatus(`추출 중... (${label})`);
-
-        let all = "";
-        for(let idx=0; idx<pages.length; idx++){
-          const p = pages[idx];
-          const page = await pdfDoc.getPage(p);
-          const content = await page.getTextContent({ normalizeWhitespace: false });
-          const lines = groupIntoLinesWithGap(content.items);
-          all += lines.join("\n") + "\n\n";
-          setStatus(`추출 중... (${idx+1}/${pages.length})`);
-        }
-
-        const cleaned = cleanText(all, {
-          removeHeaders: $("optRemoveHeaders").checked,
-          keepSubject: $("optKeepSubject").checked,
-          applyLawDict: $("optApplyLawDict").checked,
-          fixHangulFragments: $("optFixHangulFragments").checked,
-        });
-
-        $("output").value = cleaned;
-
-        const ok = cleaned.trim().length > 0;
-        $("btnDownload").disabled = !ok;
-        $("btnCopy").disabled = !ok;
-
-        setStatus("완료", "ok");
-      }catch(err){
-        console.error(err);
-        setStatus("실패", "danger");
-        alert("추출 중 오류가 발생했습니다.");
-      }finally{
-        $("btnExtractRange").disabled = false;
-        $("btnExtractChecked").disabled = false;
-      }
-    }
-
-    // --------- 핵심: gap 기반 공백 복원 ----------
-    function groupIntoLinesWithGap(items){
       const lines = [];
-      const yTol = 2.0;
+      const yThreshold = 3.0;
 
-      for(const it of items){
-        const t = it.transform;
-        const x = t[4];
-        const y = t[5];
-        const str = it.str;
-
-        if(!str || !str.trim()) continue;
-
-        let line = null;
-        for(const L of lines){
-          if(Math.abs(L.y - y) <= yTol){ line = L; break; }
-        }
-        if(!line){
-          line = { y, items: [] };
+      for (const c of sorted) {
+        let line = lines.find(l => Math.abs(l.y - c.y) <= yThreshold);
+        if (!line) {
+          line = { y: c.y, items: [] };
           lines.push(line);
         }
-
-        line.items.push({
-          x,
-          y,
-          str,
-          w: typeof it.width === "number" ? it.width : 0,
-          t
-        });
+        line.items.push(c);
       }
 
-      // 위→아래
-      lines.sort((a,b)=>b.y - a.y);
+      // 2) 라인 정렬(위→아래)
+      lines.sort((a,b) => b.y - a.y);
 
-      return lines.map(L=>{
-        L.items.sort((a,b)=>a.x - b.x);
+      // 3) 각 라인을 x 오름차순으로 정렬 후 공백 복원
+      const rendered = lines.map(line => {
+        line.items.sort((a,b)=>a.x-b.x);
 
-        let out = "";
-        let prev = null;
+        // 평균 글자 폭 추정
+        let avgW = 0;
+        let cnt = 0;
+        for (const it of line.items) {
+          const w = (it.w > 0 ? it.w : it.s.length * 5);
+          avgW += w / Math.max(1, it.s.length);
+          cnt++;
+        }
+        avgW = (cnt ? avgW / cnt : 5);
 
-        for(const cur of L.items){
-          if(!prev){
-            out += cur.str;
-            prev = cur;
+        let s = "";
+        for (let i=0;i<line.items.length;i++) {
+          const cur = line.items[i];
+          const prev = line.items[i-1];
+
+          if (i === 0) {
+            s += cur.s;
             continue;
           }
 
-          const prevEnd = prev.x + (prev.w || 0);
-          const gap = cur.x - prevEnd;
+          const gap = cur.x - prev.x - (prev.w || (prev.s.length * avgW));
+          const needSpace = gap > avgW * 0.35;
 
-          // 글자 크기 추정 (대략)
-          const fs = Math.max(Math.abs(cur.t?.[0] ?? 10), Math.abs(cur.t?.[3] ?? 10), 10);
-
-          // 공백 삽입 임계값: 글자 크기의 0.22배 이상이면 공백
-          // (한글 2022 복사처럼 "적당히" 공백이 들어오도록 보수적으로 설정)
-          if(gap > fs * 0.22) out += " ";
-
-          out += cur.str;
-          prev = cur;
+          // 한국어/한자 시험지 특성상, 공백이 과도하게 들어가면 오히려 깨짐.
+          // gap이 충분할 때만 스페이스 1개를 넣음.
+          if (needSpace && !endsWithNoSpace(prev.s) && !startsWithNoSpace(cur.s)) {
+            s += " ";
+          }
+          s += cur.s;
         }
-
-        return out.trim();
+        return s.trim();
       });
+
+      // 4) 라인 합치기: 문장 중간 줄바꿈은 “후처리”에서 다룸
+      return rendered.join("\n");
     }
 
-    // --------- Cleaning / Formatting ----------
-    function cleanText(text, opts){
-      text = (text || "").replace(/\r/g, "");
+    function endsWithNoSpace(s) {
+      // 괄호/따옴표/중간점/콤마 앞뒤 공백 흔들림 줄이기
+      return /[\(（\[「『“"']$/.test(s);
+    }
+    function startsWithNoSpace(s) {
+      return /^[\)）\]」』”"'\.,，。]/.test(s);
+    }
 
-      // (A) 머리말 제거(시험지 패턴)
-      if(opts.removeHeaders){
-        text = text.replace(/^\s*\d{4}년도.*\(\s*\d+\s*-\s*\d+\s*\)\s*$/gm, "");
-        if(!opts.keepSubject){
-          text = text.replace(/^\s*(민법|형법|회계원리|시설개론|공동주택관리.*|부동산학개론|중개사법령.*)\s*$/gm, "");
-        }
-      }
+    function cleanText(text, keepKeyword) {
+      // 0) 윈도우 줄바꿈 정리
+      text = text.replace(/\r\n/g, "\n");
 
-      // (B) 과다 빈줄
+      // 1) 페이지 머리/꼬리말 제거 (연도/회차/형식 문자열)
+      // 예: "2024년 제35회 공인중개사 1차 1교시 A형-12-7"
+      // 예: "2019년도 제22회 ... ( 13 - 2 )"
+      text = text.replace(/^\s*\d{4}년\s*제\d+회.*?A형[-–]\d+[-–]\d+\s*$/gm, "");
+      text = text.replace(/^\s*\d{4}년도\s*제\d+회.*?\(\s*\d+\s*-\s*\d+\s*\)\s*$/gm, "");
+
+      // 2) 불필요한 공백/빈줄 정리
+      text = text.replace(/[ \t]+\n/g, "\n");
       text = text.replace(/\n{3,}/g, "\n\n");
 
-      // (C) 문장 중간 줄바꿈 합치기(구조 라인은 유지)
-      text = joinSoftLineBreaks(text);
+      // 3) (선택) 특정 키워드 포함 라인만 남기기
+      // - “민법”으로 필터하면 해당 단락만 남길 수 있음(완벽하진 않지만 쓸만함)
+      if (keepKeyword) {
+        const lines = text.split("\n");
+        const kept = [];
+        let keepMode = false;
 
-      // (D) 선택 옵션: "부 동 산 학 개 론" 같은 '조각형'만 붙이기 (매우 보수)
-      if(opts.fixHangulFragments){
-        text = fixHangulFragmentRuns(text);
+        for (const line of lines) {
+          const l = line.trim();
+
+          // 키워드를 만나면 keepMode 시작
+          if (l.includes(keepKeyword)) keepMode = true;
+
+          // 다른 과목 시작으로 보이면 keepMode 종료(너무 공격적이면 꺼도 됨)
+          if (keepMode && /^제\d+과목\s*:/.test(l) && !l.includes(keepKeyword)) keepMode = false;
+
+          if (keepMode) kept.push(line);
+        }
+        text = kept.join("\n");
       }
 
-      // (E) 공백/기호 정리
-      text = normalizeSpaces(text);
-
-      // (F) 문제 포맷: 선지 1줄, ㄱㄴㄷ 줄
-      text = formatQuestions(text);
-
-      // (G) 민법 결합어 사전
-      if(opts.applyLawDict){
-        text = applyLawFixDict(text);
-      }
-
-      // (H) 마무리
-      text = text.replace(/[ \t]+\n/g, "\n");
-      text = text.replace(/\n{3,}/g, "\n\n").trim();
-      return text;
-    }
-
-    function isStructuralLine(s){
-      const t = (s || "").trim();
-      return (
-        /^\d+\./.test(t) ||
-        /^(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ)\./.test(t) ||
-        /^[①②③④⑤]/.test(t) ||
-        /^\(.+\)$/.test(t)
-      );
-    }
-
-    function joinSoftLineBreaks(text){
-      const lines = text.split("\n");
-      const out = [];
-
-      for(let i=0; i<lines.length; i++){
-        const cur = lines[i].replace(/\s+$/g, "");
-        const nextRaw = (i+1<lines.length) ? lines[i+1] : "";
-        const next = nextRaw.replace(/^\s+/g, "");
-
-        if(cur.trim() === ""){
-          out.push("");
-          continue;
-        }
-        if(next.trim() === ""){
-          out.push(cur);
-          continue;
-        }
-        if(isStructuralLine(cur) || isStructuralLine(next)){
-          out.push(cur);
-          continue;
-        }
-
-        out.push(cur + " " + next);
-        i++;
-      }
-      return out.join("\n");
-    }
-
-    function normalizeSpaces(text){
-      text = text.replace(/[ \t]{2,}/g, " ");
-      text = text.replace(/\s+([,.;:!?])/g, "$1");
-      text = text.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
-      text = text.replace(/^\s+/gm, "");
-      return text;
-    }
-
-    function formatQuestions(text){
-      // 문제번호 앞 빈줄
+      // 4) 문제 번호 앞은 빈줄 1개
       text = text.replace(/\n(\d+\.)/g, "\n\n$1");
 
-      // ㄱㄴㄷ 줄바꿈
-      text = text.replace(/\s*(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ)\.\s*/g, "\n$1. ");
+      // 5) ㄱ ㄴ ㄷ ㄹ 줄바꿈 강제
+      text = text.replace(/\s*(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ|ㅂ)\.\s*/g, "\n$1. ");
 
-      // 선지 무조건 1줄씩
+      // 6) 선지(①②③④⑤) 무조건 한 줄씩
       text = text.replace(/\s*([①②③④⑤])\s*/g, "\n$1 ");
-      text = text.replace(/\n\s*([①②③④⑤])/g, "\n$1");
 
-      // 3줄 이상 빈줄 -> 2줄
-      text = text.replace(/\n{3,}/g, "\n\n");
+      // 7) PDF 줄바꿈으로 잘린 문장 붙이기(너무 공격적으로 붙지 않게 “조건부”)
+      // - 줄 끝이 "있으" 같이 끊긴 걸 이어붙이려면 더 복잡한 규칙이 필요하지만,
+      //   여기선 최소한의 안전 규칙만 적용.
+      // - 다음 줄이 선지/문제번호/ㄱㄴㄷ 로 시작하면 유지.
+      const lines2 = text.split("\n");
+      const merged = [];
+      for (let i=0;i<lines2.length;i++) {
+        const cur = lines2[i];
+        const next = lines2[i+1];
+
+        if (!next) { merged.push(cur); break; }
+
+        const curT = cur.trim();
+        const nextT = next.trim();
+
+        const nextIsBlock =
+          /^\d+\./.test(nextT) ||
+          /^[①②③④⑤]/.test(nextT) ||
+          /^[ㄱㄴㄷㄹㅁㅂ]\./.test(nextT) ||
+          /^제\d+과목\s*:/.test(nextT);
+
+        // 현재 줄이 문장 끝(마침표/물음표/닫는괄호 등)이면 유지
+        const curLooksEnded = /[\.!?。…]$/.test(curT) || /[\)\]）】]$/.test(curT);
+
+        if (!nextIsBlock && !curLooksEnded) {
+          // 너무 붙는 걸 막기 위해: 다음 줄이 짧은 머리말이면 줄 유지
+          if (nextT.length <= 3) {
+            merged.push(cur);
+          } else {
+            // 줄바꿈 제거 + 공백 하나(문장 연결)
+            merged.push(cur.replace(/\s+$/,"") + " " + next.replace(/^\s+/,""));
+            i++; // next 소비
+          }
+        } else {
+          merged.push(cur);
+        }
+      }
+      text = merged.join("\n");
+
+      // 8) 다시 빈줄 정리
+      text = text.replace(/\n{3,}/g, "\n\n").trim() + "\n";
       return text;
     }
 
-    // 매우 보수적으로: 단일 음절 + 공백이 6회 이상 연속일 때만 붙임
-    function fixHangulFragmentRuns(text){
-      return text.replace(/(?:[가-힣]\s+){6,}[가-힣]/g, (m) => m.replace(/\s+/g, ""));
-    }
-
-    function applyLawFixDict(text){
-      const dict = [
-        [/\b물\s*권\b/g, "물권"],
-        [/\b물\s*권\s*행위\b/g, "물권행위"],
-        [/\b물\s*권\s*변동\b/g, "물권변동"],
-        [/\b물권\s*적\s*청구권\b/g, "물권적청구권"],
-        [/\b물\s*권\s*적\s*청구권\b/g, "물권적청구권"],
-        [/\b법률\s*행위\b/g, "법률행위"],
-        [/\b의사\s*표시\b/g, "의사표시"],
-        [/\b통정\s*허위\s*표시\b/g, "통정허위표시"],
-        [/\b소유권이\s*전\b/g, "소유권이전"],
-        [/\b소유권이\s*전등기\s*청구권\b/g, "소유권이전등기청구권"],
-        [/\b소유권이\s*전등기청구권\b/g, "소유권이전등기청구권"],
-        [/\b소유권이\s*전청구권\b/g, "소유권이전청구권"],
-        [/\b중간\s*생략\s*등기\b/g, "중간생략등기"],
-        [/\b소멸\s*시효\b/g, "소멸시효"],
-        [/\b무권\s*대리\b/g, "무권대리"],
-        [/\b표현\s*대리\b/g, "표현대리"],
-        [/\b유권\s*대리\b/g, "유권대리"],
-        [/\b손해\s*배상\b/g, "손해배상"],
-        [/\b부당\s*이득\b/g, "부당이득"],
-        [/\b저당\s*권\b/g, "저당권"],
-        [/\b근저당\s*권\b/g, "근저당권"],
-        [/\b전세\s*권\b/g, "전세권"],
-        [/\b지상\s*권\b/g, "지상권"],
-        [/\b유치\s*권\b/g, "유치권"],
-      ];
-      for(const [re,to] of dict) text = text.replace(re,to);
-      return text;
-    }
-
-    function downloadTxt(){
+    function downloadTxt() {
       const text = $("output").value || "";
-      if(!text.trim()){ alert("다운로드할 텍스트가 없습니다."); return; }
+      if (!text.trim()) return;
+
       const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
+
       const a = document.createElement("a");
       a.href = url;
       a.download = "output.txt";
       a.click();
+
       URL.revokeObjectURL(url);
     }
 
-    async function copyToClipboard(){
+    async function copyToClipboard() {
       const text = $("output").value || "";
-      if(!text.trim()) return;
-      try{
-        await navigator.clipboard.writeText(text);
-        alert("복사 완료");
-      }catch(e){
-        alert("복사 실패(브라우저 권한/보안 설정).");
-      }
+      if (!text.trim()) return;
+      await navigator.clipboard.writeText(text);
+      alert("복사 완료");
     }
   </script>
 </body>
