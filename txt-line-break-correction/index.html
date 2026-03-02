@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TXT Line Break Correction</title>
+
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --panel:#11182a;
+      --panel2:#0f1526;
+      --text:#e8eefc;
+      --muted:#9fb0d0;
+      --line:#24304f;
+      --accent:#6aa6ff;
+      --accent2:#7cf3d1;
+      --danger:#ff6a8a;
+      --ok:#7cf3d1;
+      --warn:#ffd36a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background: radial-gradient(1200px 600px at 15% 10%, rgba(106,166,255,.20), transparent 55%),
+                  radial-gradient(1000px 600px at 80% 30%, rgba(124,243,209,.14), transparent 55%),
+                  linear-gradient(180deg, #070a12, var(--bg));
+      min-height:100vh;
+      padding:28px 18px 48px;
+    }
+    .wrap{max-width:1200px;margin:0 auto}
+    header{
+      display:flex; gap:14px; align-items:flex-end; justify-content:space-between;
+      margin-bottom:16px;
+    }
+    h1{font-size:22px;margin:0;letter-spacing:.2px}
+    .sub{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+    .top-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    button{
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      box-shadow: 0 1px 0 rgba(255,255,255,.06) inset;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+      font-weight:600;
+      font-size:13px;
+      display:inline-flex;align-items:center;gap:8px;
+    }
+    button:hover{border-color:rgba(106,166,255,.55)}
+    button:active{transform:translateY(1px)}
+    button.primary{border-color:rgba(106,166,255,.55); background:linear-gradient(180deg, rgba(106,166,255,.22), rgba(106,166,255,.08))}
+    button.good{border-color:rgba(124,243,209,.55); background:linear-gradient(180deg, rgba(124,243,209,.20), rgba(124,243,209,.06))}
+    button.danger{border-color:rgba(255,106,138,.55); background:linear-gradient(180deg, rgba(255,106,138,.18), rgba(255,106,138,.06))}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .grid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:14px;
+      margin-top:14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .card .head{
+      padding:14px 14px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    }
+    .card .head h2{margin:0;font-size:14px}
+    .card .body{padding:14px}
+    .drop{
+      border:1.5px dashed rgba(106,166,255,.55);
+      border-radius:14px;
+      padding:16px;
+      background:rgba(106,166,255,.08);
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .drop strong{font-size:13px}
+    .drop .hint{color:var(--muted);font-size:12px;line-height:1.4}
+    .drop.drag{background:rgba(124,243,209,.10); border-color:rgba(124,243,209,.70)}
+    .file-input{display:none}
+    .list{
+      margin-top:12px;
+      display:flex; flex-direction:column; gap:8px;
+      max-height:340px; overflow:auto; padding-right:4px;
+    }
+    .item{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      padding:10px 10px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      background:rgba(0,0,0,.15);
+    }
+    .item-left{display:flex;align-items:center;gap:10px;min-width:0}
+    .item-left label{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer}
+    .fname{
+      font-size:12.5px;
+      color:var(--text);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      max-width:220px;
+    }
+    .meta{font-size:11px;color:var(--muted)}
+    .pill{
+      font-size:11px; padding:4px 8px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--muted);
+      background:rgba(255,255,255,.03);
+      white-space:nowrap;
+    }
+    .pill.ok{border-color:rgba(124,243,209,.55); color:rgba(124,243,209,.95); background:rgba(124,243,209,.06)}
+    .pill.warn{border-color:rgba(255,211,106,.55); color:rgba(255,211,106,.95); background:rgba(255,211,106,.06)}
+    .controls{
+      display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;
+    }
+    .kv{
+      display:flex; flex-wrap:wrap; gap:10px;
+      padding:10px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      background:rgba(0,0,0,.12);
+    }
+    .kv .row{display:flex;align-items:center;gap:10px}
+    .kv label{font-size:12px;color:var(--muted)}
+    input[type="number"]{
+      width:110px;
+      background:rgba(0,0,0,.25);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:10px;
+      padding:8px 10px;
+      font-family:var(--mono);
+      font-size:12px;
+    }
+    input[type="checkbox"]{transform:scale(1.05)}
+    .preview{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 980px){
+      .preview{grid-template-columns:1fr}
+    }
+    textarea{
+      width:100%;
+      min-height:520px;
+      resize:vertical;
+      background:rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:12px;
+      color:var(--text);
+      font-family:var(--mono);
+      font-size:12.2px;
+      line-height:1.45;
+      outline:none;
+    }
+    textarea:focus{border-color:rgba(106,166,255,.55)}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    .status{
+      margin-top:10px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      background:rgba(0,0,0,.14);
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+      display:flex; align-items:flex-start; gap:10px;
+    }
+    .status b{color:var(--text)}
+    .status .dot{
+      width:9px;height:9px;border-radius:50%;
+      margin-top:4px;background:rgba(159,176,208,.8);
+      box-shadow:0 0 0 3px rgba(159,176,208,.15);
+      flex:0 0 auto;
+    }
+    .status.ok .dot{background:rgba(124,243,209,.9); box-shadow:0 0 0 3px rgba(124,243,209,.15)}
+    .status.warn .dot{background:rgba(255,211,106,.95); box-shadow:0 0 0 3px rgba(255,211,106,.15)}
+    .status.err .dot{background:rgba(255,106,138,.95); box-shadow:0 0 0 3px rgba(255,106,138,.15)}
+    .small-actions{display:flex;gap:10px;flex-wrap:wrap}
+    a.link{
+      color:rgba(106,166,255,.95);
+      text-decoration:none;
+      border-bottom:1px dashed rgba(106,166,255,.5);
+    }
+    a.link:hover{opacity:.9}
+    .footer-note{margin-top:10px;color:var(--muted);font-size:11.5px;line-height:1.5}
+  </style>
+
+  <!-- JSZip (client-side zip) -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>TXT 자동 줄바꿈 보정</h1>
+        <div class="sub">
+          TXT(복사/추출로 생긴 문장 중간 줄바꿈)를 규칙 기반으로 합치고, 문제 번호/보기 등 “구조 줄바꿈”은 유지합니다.
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="good" id="btnSelect"><span>📄</span>파일 선택</button>
+        <button class="primary" id="btnFix" disabled><span>✨</span>수정</button>
+        <button class="primary" id="btnZip" disabled><span>📦</span>ZIP 다운로드</button>
+        <button class="danger" id="btnClear" disabled><span>🧹</span>초기화</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Left: upload + list + options -->
+      <div class="card">
+        <div class="head">
+          <h2>파일</h2>
+          <span class="pill" id="fileCountPill">0개</span>
+        </div>
+        <div class="body">
+          <div class="drop" id="drop">
+            <strong>여기에 TXT 파일을 드래그앤드롭</strong>
+            <div class="hint">여러 파일을 한 번에 넣을 수 있습니다. (일괄 수정 → ZIP)</div>
+            <input class="file-input" type="file" id="fileInput" accept=".txt,text/plain" multiple />
+          </div>
+
+          <div class="controls">
+            <button id="btnSelect2"><span>➕</span>추가 선택</button>
+            <button id="btnRemoveSelected" class="danger" disabled><span>🗑️</span>선택 제거</button>
+          </div>
+
+          <div class="list" id="fileList"></div>
+
+          <div class="status" id="statusBox">
+            <div class="dot"></div>
+            <div>
+              <b>대기</b><br/>
+              TXT 파일을 추가하세요.
+            </div>
+          </div>
+
+          <div class="footer-note">
+            단일 파일은 “수정” 후 <span style="color:var(--text)">수정본 다운로드</span> 버튼이 활성화됩니다. 여러 파일은 “ZIP 다운로드”를 사용하세요.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: preview -->
+      <div class="card">
+        <div class="head">
+          <h2>미리보기</h2>
+          <div class="small-actions">
+            <span class="pill warn" id="modePill">단일 파일 미리보기</span>
+            <button id="btnDownloadOne" class="good" disabled><span>⬇️</span>수정본 다운로드</button>
+          </div>
+        </div>
+        <div class="body">
+          <div class="kv" style="margin-bottom:12px;">
+            <div class="row">
+              <input type="checkbox" id="optKeepBlank" checked />
+              <label for="optKeepBlank">빈 줄 유지</label>
+            </div>
+            <div class="row">
+              <input type="checkbox" id="optSmartNoSpace" checked />
+              <label for="optSmartNoSpace">조사/어미/단어쪼개짐은 붙이기(공백 제거)</label>
+            </div>
+            <div class="row">
+              <label for="optMaxJoin">합치기 최대 연속 줄(안전장치)</label>
+              <input type="number" id="optMaxJoin" min="1" max="50" value="12" />
+            </div>
+          </div>
+
+          <div class="preview">
+            <div>
+              <div class="muted" style="margin:0 0 6px;">원본</div>
+              <textarea id="taOriginal" placeholder="왼쪽에서 파일을 선택하면 표시됩니다." readonly></textarea>
+            </div>
+            <div>
+              <div class="muted" style="margin:0 0 6px;">수정 결과</div>
+              <textarea id="taFixed" placeholder="“수정”을 누르면 결과가 표시됩니다." readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  /** -----------------------------
+   *  State
+   * ------------------------------ */
+  const state = {
+    files: [],              // { id, file, name, size, text, fixedText }
+    selected: new Set(),    // ids
+    lastSingleId: null      // for preview/download
+  };
+
+  /** -----------------------------
+   *  DOM
+   * ------------------------------ */
+  const $ = (id) => document.getElementById(id);
+
+  const drop = $("drop");
+  const fileInput = $("fileInput");
+  const fileList = $("fileList");
+  const fileCountPill = $("fileCountPill");
+  const statusBox = $("statusBox");
+
+  const btnSelect = $("btnSelect");
+  const btnSelect2 = $("btnSelect2");
+  const btnFix = $("btnFix");
+  const btnZip = $("btnZip");
+  const btnClear = $("btnClear");
+  const btnRemoveSelected = $("btnRemoveSelected");
+  const btnDownloadOne = $("btnDownloadOne");
+
+  const taOriginal = $("taOriginal");
+  const taFixed = $("taFixed");
+  const modePill = $("modePill");
+
+  const optKeepBlank = $("optKeepBlank");
+  const optSmartNoSpace = $("optSmartNoSpace");
+  const optMaxJoin = $("optMaxJoin");
+
+  /** -----------------------------
+   *  Helpers
+   * ------------------------------ */
+  const uid = () => Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+
+  function fmtBytes(n){
+    if(n < 1024) return n + " B";
+    if(n < 1024*1024) return (n/1024).toFixed(1) + " KB";
+    return (n/(1024*1024)).toFixed(2) + " MB";
+  }
+
+  function setStatus(kind, title, msg){
+    statusBox.className = "status" + (kind ? (" " + kind) : "");
+    statusBox.innerHTML = `
+      <div class="dot"></div>
+      <div><b>${escapeHtml(title)}</b><br/>${escapeHtml(msg)}</div>
+    `;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (m) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  function downloadBlob(filename, blob){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /** -----------------------------
+   *  Core rule: line break correction
+   *  (Designed from the uploaded before/after examples)
+   * ------------------------------ */
+
+  // Markers that indicate "new block" lines (do NOT merge into previous line)
+  const RE_BLOCK_START = new RegExp(
+    [
+      "^\\s*\\d+\\.",                // 1. 2. 10.
+      "^\\s*[①-⑳]\\s*",             // ① ② ...
+      "^\\s*[ㄱ-ㅎ]\\.",             // ㄱ.
+      "^\\s*[ㄱ-ㅎ]\\s",             // ㄱ (space)
+      "^\\s*[A-Z]\\s*형",            // A형 (if appears line-start)
+      "^\\s*\\d{4}년도\\s",           // 2020년도 ...
+      "^\\s*민법\\s*$",               // subject line
+      "^\\s*형법\\s*$",
+      "^\\s*부동산\\s*$",
+      "^\\s*소멸시효\\s*$",
+      "^\\s*\\[",                    // [ ... ] headings
+      "^\\s*\\("                     // ( ... ) often headings
+    ].join("|"),
+    "u"
+  );
+  // (다툼이 있으면 판례에 따름) 뒤는 무조건 줄바꿈
+const RE_FORCE_BREAK_AFTER = /\(다툼이\s*있으면\s*판례에\s*따름\)/u;
+
+// 기호/문항 시작(무조건 블록) - 필요하면 더 추가 가능
+const RE_SYMBOL_LINE = new RegExp(
+  [
+    "^\\s*[①-⑳]\\s*",          // ① ② ...
+    "^\\s*[ㄱ-ㅎ]\\s*\\.|^\\s*[ㄱ-ㅎ]\\s", // ㄱ. / ㄱ
+    "^\\s*\\d+\\)",             // 1)
+    "^\\s*\\(\\d+\\)",          // (1)
+    "^\\s*\\d+\\.",             // 1.
+    "^\\s*[A-Z]\\.",            // A.
+  ].join("|"),
+  "u"
+);
+  
+  // Header line (keep newline after it)
+  const RE_HEADER_LINE = /^\\s*\\d{4}년도.+\\(\\s*\\d+\\s*-\\s*\\d+\\s*\\)\\s*$/u;
+
+  // Decide whether we should keep a newline between prev and next
+  function shouldKeepNewline(prevLine, nextLine){
+    const prev = prevLine ?? "";
+    const next = nextLine ?? "";
+    const p = prev.trim();
+    const n = next.trim();
+
+  // ✅ (다툼이 있으면 판례에 따름) 뒤는 무조건 줄바꿈
+  if (RE_FORCE_BREAK_AFTER.test(prev)) return true;
+
+  // ✅ 기호 줄은 무조건 줄바꿈(앞줄과 합치지 않음)
+  if (RE_SYMBOL_LINE.test(n)) return true;
+
+  // ✅ 기호 줄 자체도 다음 줄과 합치지 않게(기호 줄 뒤도 줄바꿈 유지)
+  if (RE_SYMBOL_LINE.test(p)) return true;
+
+  // blank lines
+  if(p === "" || n === "") return true;
+    
+    // blank lines
+    if(p === "" || n === "") return true;
+
+    // Keep after a header-ish line
+    if(RE_HEADER_LINE.test(p)) return true;
+
+    // If next line clearly starts a new block
+    if(RE_BLOCK_START.test(n)) return true;
+
+    // If prev ends with strong sentence boundary, keep
+    if(/[.!?]["')\\]]?$/u.test(p)) return true;
+
+    // If prev line is very short title and next is a question number, keep
+    if(p.length <= 8 && /^\\d+\\./u.test(n)) return true;
+
+    return false;
+  }
+
+  // Decide joiner (space or empty)
+  function decideJoiner(prevLine, nextLine){
+    const prev = prevLine.replace(/\\s+$/u, "");
+    const next = nextLine.replace(/^\\s+/u, "");
+
+    // punctuation/parenthesis glue
+    if(/[\\(\\[\\{]$/u.test(prev)) return "";
+    if(/^[\\)\\]\\},.;:!?]/u.test(next)) return "";
+
+    if(!optSmartNoSpace.checked) return " ";
+
+    const prevLastToken = prev.split(/\\s+/u).slice(-1)[0] || "";
+    const nextFirstToken = next.split(/\\s+/u)[0] || "";
+
+    const isHangul = (s) => /^[가-힣]+$/u.test(s);
+    const endsHangul = /[가-힣]$/u.test(prev);
+    const startsHangul = /^[가-힣]/u.test(next);
+
+    // 조사/어미로 시작하는 경우(대표적인 것만)
+    const particleLike = /^(은|는|을|를|이|가|에|의|와|과|도|로|으로|만|까지|부터|보다|처럼|라도|마저|조차|에서|에게|께서|한|하는|하며|하면|했다|한다|된다|되는|된|되지|있다|없다)/u;
+    if(endsHangul && particleLike.test(next)) return "";
+
+    // 단어가 줄바꿈으로 쪼개진 흔한 케이스(짧은 토큰 + 짧은 토큰) → 붙이기
+    // 예: 옳 + 은, 무경 + 험, 정 + 착물, 경 + 우, 이 + 유로 ...
+    if(isHangul(prevLastToken) && isHangul(nextFirstToken)){
+      if(prevLastToken.length <= 2 && nextFirstToken.length <= 2) return "";
+    }
+
+    // 기본은 공백
+    return " ";
+  }
+
+  function fixLineBreaks(text){
+    const keepBlank = optKeepBlank.checked;
+    let maxJoin = parseInt(optMaxJoin.value, 10);
+    if(!Number.isFinite(maxJoin) || maxJoin < 1) maxJoin = 12;
+
+    const normalized = String(text)
+      .replace(/\\r\\n/g, "\\n")
+      .replace(/\\r/g, "\\n");
+
+    const lines = normalized.split("\\n");
+    const out = [];
+    let buf = "";
+    let joinCount = 0;
+
+    function flush(){
+      if(buf !== ""){
+        out.push(buf);
+        buf = "";
+      }
+      joinCount = 0;
+    }
+
+    for(let i=0;i<lines.length;i++){
+      const line = lines[i];
+      const next = (i+1 < lines.length) ? lines[i+1] : null;
+
+      if(buf === ""){
+        if(line.trim()===""){
+          if(keepBlank) out.push("");
+          continue;
+        }
+        buf = line.trimEnd();
+        joinCount = 0;
+        continue;
+      }
+
+      // current buffer exists
+      if(line.trim()===""){
+        // flush buf and keep blank line (optional)
+        flush();
+        if(keepBlank) out.push("");
+        continue;
+      }
+
+      if(shouldKeepNewline(buf, line)){
+        flush();
+        buf = line.trimEnd();
+        joinCount = 0;
+        continue;
+      }
+
+      // Safety: if merges too long, force newline
+      if(joinCount >= maxJoin){
+        flush();
+        buf = line.trimEnd();
+        joinCount = 0;
+        continue;
+      }
+
+      const joiner = decideJoiner(buf, line);
+      buf = buf.replace(/\\s+$/u, "") + joiner + line.replace(/^\\s+/u, "");
+      joinCount += 1;
+
+      // If next line is a block start, flush now (prevents over-merging)
+      if(next && shouldKeepNewline(buf, next)){
+        flush();
+      }
+    }
+
+    flush();
+    return out.join("\\n").replace(/\\n{3,}/g, "\\n\\n"); // reduce excessive blanks
+  }
+
+  /** -----------------------------
+   *  UI rendering
+   * ------------------------------ */
+  function refreshUI(){
+    // counts
+    fileCountPill.textContent = state.files.length + "개";
+
+    btnClear.disabled = state.files.length === 0;
+    btnFix.disabled = state.files.length === 0;
+    btnZip.disabled = state.files.length === 0;
+
+    btnRemoveSelected.disabled = state.selected.size === 0;
+
+    // mode pill
+    if(state.files.length === 1){
+      modePill.textContent = "단일 파일 미리보기";
+      modePill.className = "pill warn";
+    }else if(state.files.length > 1){
+      modePill.textContent = "여러 파일 (ZIP 가능)";
+      modePill.className = "pill ok";
+    }else{
+      modePill.textContent = "단일 파일 미리보기";
+      modePill.className = "pill warn";
+    }
+
+    // list
+    fileList.innerHTML = "";
+    state.files.forEach((f) => {
+      const checked = state.selected.has(f.id);
+      const fixedTag = (typeof f.fixedText === "string") ? "ok" : "warn";
+      const fixedLabel = (typeof f.fixedText === "string") ? "수정됨" : "미수정";
+
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `
+        <div class="item-left">
+          <label>
+            <input type="checkbox" data-id="${f.id}" ${checked ? "checked": ""} />
+            <div style="min-width:0">
+              <div class="fname" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+              <div class="meta">${escapeHtml(fmtBytes(f.size))}</div>
+            </div>
+          </label>
+        </div>
+        <span class="pill ${fixedTag}">${fixedLabel}</span>
+      `;
+
+      // click row to preview single
+      div.addEventListener("click", (e) => {
+        // avoid toggling when clicking checkbox itself
+        if(e.target && e.target.tagName === "INPUT") return;
+        showPreview(f.id);
+      });
+
+      // checkbox
+      const cb = div.querySelector("input[type=checkbox]");
+      cb.addEventListener("change", () => {
+        const id = cb.getAttribute("data-id");
+        if(cb.checked) state.selected.add(id);
+        else state.selected.delete(id);
+        refreshUI();
+      });
+
+      fileList.appendChild(div);
+    });
+
+    // preview selection
+    if(state.files.length === 0){
+      taOriginal.value = "";
+      taFixed.value = "";
+      btnDownloadOne.disabled = true;
+      state.lastSingleId = null;
+      setStatus("", "대기", "TXT 파일을 추가하세요.");
+      return;
+    }
+
+    // If we don't have a preview target, choose first
+    if(!state.lastSingleId || !state.files.some(f => f.id === state.lastSingleId)){
+      state.lastSingleId = state.files[0].id;
+      showPreview(state.lastSingleId, true);
+    }
+
+    // status message
+    const fixedCount = state.files.filter(f => typeof f.fixedText === "string").length;
+    if(fixedCount === 0){
+      setStatus("warn", "준비됨", "“수정”을 누르면 선택한 규칙으로 줄바꿈을 보정합니다.");
+    }else if(fixedCount < state.files.length){
+      setStatus("warn", "부분 수정", `${fixedCount}/${state.files.length} 파일이 수정되었습니다. 필요하면 다시 “수정”을 누르세요.`);
+    }else{
+      setStatus("ok", "완료", `전체 ${state.files.length}개 파일 수정 완료. 단일 다운로드 또는 ZIP 다운로드가 가능합니다.`);
+    }
+  }
+
+  function showPreview(id, silent=false){
+    const f = state.files.find(x => x.id === id);
+    if(!f) return;
+    state.lastSingleId = id;
+
+    taOriginal.value = f.text ?? "";
+    taFixed.value = (typeof f.fixedText === "string") ? f.fixedText : "";
+
+    btnDownloadOne.disabled = !(typeof f.fixedText === "string");
+    if(!silent) refreshUI();
+  }
+
+  /** -----------------------------
+   *  File ingest
+   * ------------------------------ */
+  async function addFiles(fileListLike){
+    const files = Array.from(fileListLike || []).filter(f => f && f.type !== "application/x-msdownload");
+    if(files.length === 0) return;
+
+    const txtFiles = files.filter(f => (f.name || "").toLowerCase().endsWith(".txt") || (f.type || "").startsWith("text/"));
+    if(txtFiles.length === 0){
+      setStatus("err", "오류", "TXT 파일만 지원합니다.");
+      return;
+    }
+
+    for(const file of txtFiles){
+      const text = await file.text();
+      state.files.push({
+        id: uid(),
+        file,
+        name: file.name || "untitled.txt",
+        size: file.size || text.length,
+        text,
+        fixedText: null
+      });
+    }
+
+    // auto-select all newly added
+    state.files.forEach(f => state.selected.add(f.id));
+
+    // show first of newly added
+    state.lastSingleId = state.files[state.files.length - txtFiles.length].id;
+    showPreview(state.lastSingleId, true);
+
+    refreshUI();
+  }
+
+  /** -----------------------------
+   *  Actions
+   * ------------------------------ */
+  function runFix(){
+    if(state.files.length === 0) return;
+
+    // If nothing selected, fix all
+    const targetIds = (state.selected.size > 0)
+      ? Array.from(state.selected)
+      : state.files.map(f => f.id);
+
+    for(const id of targetIds){
+      const f = state.files.find(x => x.id === id);
+      if(!f) continue;
+      f.fixedText = fixLineBreaks(f.text || "");
+    }
+
+    // update preview
+    if(state.lastSingleId){
+      showPreview(state.lastSingleId, true);
+    }
+    refreshUI();
+  }
+
+  function downloadOne(){
+    if(!state.lastSingleId) return;
+    const f = state.files.find(x => x.id === state.lastSingleId);
+    if(!f || typeof f.fixedText !== "string") return;
+
+    const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
+    downloadBlob(outName, new Blob([f.fixedText], {type:"text/plain;charset=utf-8"}));
+  }
+
+  async function downloadZip(){
+    if(state.files.length === 0) return;
+
+    // Ensure fixed text exists (auto-fix all if not)
+    const needFix = state.files.some(f => typeof f.fixedText !== "string");
+    if(needFix) runFix();
+
+    const zip = new JSZip();
+    for(const f of state.files){
+      const fixed = (typeof f.fixedText === "string") ? f.fixedText : (f.text || "");
+      const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
+      zip.file(outName, fixed);
+    }
+
+    const blob = await zip.generateAsync({type:"blob"});
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
+    downloadBlob(`txt_linebreak_fixed_${stamp}.zip`, blob);
+  }
+
+  function clearAll(){
+    state.files = [];
+    state.selected.clear();
+    state.lastSingleId = null;
+    taOriginal.value = "";
+    taFixed.value = "";
+    btnDownloadOne.disabled = true;
+    refreshUI();
+  }
+
+  function removeSelected(){
+    if(state.selected.size === 0) return;
+    const ids = new Set(state.selected);
+    state.files = state.files.filter(f => !ids.has(f.id));
+    state.selected.clear();
+    // select all remaining
+    state.files.forEach(f => state.selected.add(f.id));
+    state.lastSingleId = state.files[0]?.id ?? null;
+    if(state.lastSingleId) showPreview(state.lastSingleId, true);
+    refreshUI();
+  }
+
+  /** -----------------------------
+   *  Events
+   * ------------------------------ */
+  btnSelect.addEventListener("click", () => fileInput.click());
+  btnSelect2.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", async (e) => {
+    await addFiles(e.target.files);
+    fileInput.value = "";
+  });
+
+  btnFix.addEventListener("click", runFix);
+  btnDownloadOne.addEventListener("click", downloadOne);
+  btnZip.addEventListener("click", downloadZip);
+  btnClear.addEventListener("click", clearAll);
+  btnRemoveSelected.addEventListener("click", removeSelected);
+
+  // When options change, re-run fix only on already fixed files (preview update)
+  [optKeepBlank, optSmartNoSpace, optMaxJoin].forEach(el => {
+    el.addEventListener("change", () => {
+      const fixedCount = state.files.filter(f => typeof f.fixedText === "string").length;
+      if(fixedCount > 0) runFix();
+    });
+  });
+
+  // Drag & drop
+  ["dragenter","dragover"].forEach(evt => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add("drag");
+    });
+  });
+  ["dragleave","drop"].forEach(evt => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove("drag");
+    });
+  });
+  drop.addEventListener("drop", async (e) => {
+    const dt = e.dataTransfer;
+    if(dt && dt.files && dt.files.length) await addFiles(dt.files);
+  });
+
+  // Start
+  refreshUI();
+})();
+</script>
+</body>
+</html>
