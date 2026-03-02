@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Realtor PDF2TXT</title>
+  <style>
+    body{
+      font-family: Arial, -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
+      max-width: 980px;
+      margin: auto;
+      padding: 32px 18px;
+      line-height: 1.45;
+    }
+    h1{ margin: 0 0 10px; }
+    .sub{ color:#444; font-size:14px; margin-bottom:18px; }
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    input[type="file"]{ padding:8px; border:1px solid #ddd; border-radius:10px; background:#fafafa; }
+    button{
+      padding:10px 14px;
+      border:1px solid #ddd;
+      border-radius:12px;
+      background:white;
+      cursor:pointer;
+    }
+    button:hover{ border-color:#999; }
+    button.primary{ background:#111; color:#fff; border-color:#111; }
+    button.primary:hover{ opacity:.9; }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+    .back{ display:inline-block; margin-bottom:16px; text-decoration:none; color:#111; }
+    .box{
+      margin-top:14px;
+      padding:12px;
+      border:1px solid #e5e5e5;
+      border-radius:14px;
+      background:#fcfcfc;
+    }
+    textarea{
+      width:100%;
+      height: 420px;
+      margin-top:12px;
+      font-size:14px;
+      padding:12px;
+      border:1px solid #ddd;
+      border-radius:14px;
+      resize: vertical;
+      white-space: pre;
+    }
+    .hint{ font-size:13px; color:#555; margin-top:8px; }
+    .stats{ font-size:13px; color:#333; }
+    .opt{ display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:14px; }
+    .opt label{ display:flex; gap:8px; align-items:center; }
+    .danger{ color:#b00020; }
+    .ok{ color:#0a7a20; }
+    .small{ font-size:12px; color:#666; }
+    .hr{ height:1px; background:#eee; margin:16px 0; }
+  </style>
+</head>
+
+<body>
+  <a class="back" href="../">← Tool Hub</a>
+
+  <h1>PDF → Text Cleaner</h1>
+  <div class="sub">PDF에서 뽑힌 텍스트의 <b>문장 중간 줄바꿈</b>, <b>글자 단위 띄어쓰기</b>, <b>선지(①~⑤) 정렬</b>을 정리해서 TXT로 저장합니다.</div>
+
+  <div class="row">
+    <input type="file" id="pdfFile" accept="application/pdf" />
+    <button class="primary" id="btnExtract" onclick="extractText()">Extract</button>
+    <button id="btnDownload" onclick="downloadTxt()" disabled>Download TXT</button>
+    <button onclick="copyToClipboard()" id="btnCopy" disabled>Copy</button>
+  </div>
+
+  <div class="opt">
+    <label><input type="checkbox" id="optRemoveHeaders" checked /> 시험지 머리말(예: “2019년도 … (13-2)”) 삭제</label>
+    <label><input type="checkbox" id="optKeepSubject" /> 과목명(예: “민법”) 유지</label>
+    <label><input type="checkbox" id="optAggressiveHangulJoin" checked /> 한글 글자 단위 공백(부 동 산) 강하게 붙이기</label>
+    <label><input type="checkbox" id="optApplyLawDict" checked /> 민법 결합어 사전 교정(법률행위/물권 등)</label>
+  </div>
+
+  <div class="box">
+    <div class="stats" id="status">상태: PDF를 선택하세요.</div>
+    <div class="small" id="detail"></div>
+  </div>
+
+  <textarea id="output" placeholder="추출/정리된 텍스트가 여기에 표시됩니다."></textarea>
+  <div class="hint">
+    • 선지는 <b>무조건 1줄씩</b> 출력됩니다. <br/>
+    • 스캔 PDF(이미지 PDF)는 pdf.js 텍스트 추출이 아니라 OCR이 필요합니다(이 페이지는 OCR은 하지 않음).
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // pdf.js worker (권장)
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(msg, ok=false){
+      $("status").innerHTML = `상태: <span class="${ok ? "ok" : ""}">${escapeHtml(msg)}</span>`;
+    }
+    function setDetail(msg, isDanger=false){
+      $("detail").innerHTML = msg ? `<span class="${isDanger ? "danger" : ""}">${escapeHtml(msg)}</span>` : "";
+    }
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+
+    // --------- 핵심: 좌표 기반 줄 재구성 ----------
+    function groupIntoLines(items){
+      // items: {str, transform} ; transform[4]=x, transform[5]=y
+      // PDF마다 y가 약간씩 흔들리므로 tolerance로 같은 줄 묶기
+      const lines = [];
+      const yTol = 2.0;
+
+      for(const it of items){
+        const t = it.transform;
+        const x = t[4];
+        const y = t[5];
+        const str = it.str;
+
+        // 빈 문자열/공백만은 스킵
+        if(!str || !str.trim()) continue;
+
+        let line = null;
+        for(const L of lines){
+          if(Math.abs(L.y - y) <= yTol){
+            line = L; break;
+          }
+        }
+        if(!line){
+          line = { y, items: [] };
+          lines.push(line);
+        }
+        line.items.push({ x, str });
+      }
+
+      // y 내림차순(위→아래)
+      lines.sort((a,b)=>b.y - a.y);
+
+      // 각 줄은 x 오름차순
+      const outLines = lines.map(L=>{
+        L.items.sort((a,b)=>a.x - b.x);
+
+        // 여기서 '무조건 공백'을 넣으면 "부 동 산"이 심해짐.
+        // 최소한의 공백만: 조각 사이 기본은 한 칸, 이후 정규화에서 붙임.
+        return L.items.map(i=>i.str).join(" ");
+      });
+
+      return outLines;
+    }
+
+    async function extractText(){
+      const file = $("pdfFile").files[0];
+      if(!file){ alert("PDF를 업로드하세요"); return; }
+
+      $("btnExtract").disabled = true;
+      $("btnDownload").disabled = true;
+      $("btnCopy").disabled = true;
+      $("output").value = "";
+      setStatus("추출 중...");
+      setDetail("");
+
+      try{
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+        let all = "";
+        let pagesDone = 0;
+
+        for(let p=1; p<=pdf.numPages; p++){
+          const page = await pdf.getPage(p);
+          const content = await page.getTextContent({ normalizeWhitespace: false });
+
+          const lines = groupIntoLines(content.items);
+          all += lines.join("\n") + "\n\n";
+
+          pagesDone++;
+          setStatus(`추출 중... (${pagesDone}/${pdf.numPages} 페이지)`);
+        }
+
+        const cleaned = cleanText(all, {
+          removeHeaders: $("optRemoveHeaders").checked,
+          keepSubject: $("optKeepSubject").checked,
+          aggressiveHangulJoin: $("optAggressiveHangulJoin").checked,
+          applyLawDict: $("optApplyLawDict").checked,
+        });
+
+        $("output").value = cleaned;
+        $("btnDownload").disabled = cleaned.trim().length === 0;
+        $("btnCopy").disabled = cleaned.trim().length === 0;
+
+        setStatus("완료", true);
+        setDetail(`텍스트 길이: ${cleaned.length.toLocaleString()} chars`);
+      }catch(err){
+        console.error(err);
+        setStatus("실패");
+        setDetail(String(err?.message || err), true);
+        alert("추출 중 오류가 발생했습니다. 콘솔 로그를 확인하세요.");
+      }finally{
+        $("btnExtract").disabled = false;
+      }
+    }
+
+    // --------- 정규화 / 문항 포맷 ----------
+    function cleanText(text, opts){
+      text = (text || "").replace(/\r/g, "");
+
+      // A) 머리말/꼬리말 제거 (시험지 패턴)
+      if(opts.removeHeaders){
+        // 예: "2019년도 제22회 ... ( 13 - 2 )"
+        text = text.replace(/^\s*\d{4}년도.*\(\s*\d+\s*-\s*\d+\s*\)\s*$/gm, "");
+        // 자주 섞이는 "민법" 라인 제거 여부
+        if(!opts.keepSubject){
+          text = text.replace(/^\s*(민법|형법|회계원리|공동주택관리.*|시설개론.*)\s*$/gm, "");
+        }
+      }
+
+      // B) 과다 빈 줄 정리
+      text = text.replace(/\n{3,}/g, "\n\n");
+
+      // C) 하이픈 끊김(영문) 복구
+      text = text.replace(/(\w)-\n(\w)/g, "$1$2");
+
+      // D) 문장 중간 줄바꿈 제거(구조 라인은 유지)
+      text = joinSoftLineBreaks(text);
+
+      // E) 한글 글자 단위 공백(부 동 산) 붙이기
+      if(opts.aggressiveHangulJoin){
+        for(let k=0; k<6; k++){
+          text = text.replace(/([가-힣])\s+([가-힣])/g, "$1$2");
+        }
+      }else{
+        // 약하게(2회 정도)
+        for(let k=0; k<2; k++){
+          text = text.replace(/([가-힣])\s+([가-힣])/g, "$1$2");
+        }
+      }
+
+      // F) 기호/괄호 주변 공백 정리
+      text = normalizeSpaces(text);
+
+      // G) 문제/보기 구조 정리: 문제 번호/ㄱㄴㄷ/선지(무조건 1줄씩)
+      text = formatQuestions(text);
+
+      // H) 민법 결합어 사전 교정
+      if(opts.applyLawDict){
+        text = applyLawFixDict(text);
+      }
+
+      // I) 마지막 정리
+      text = text.replace(/[ \t]+\n/g, "\n");
+      text = text.replace(/\n{3,}/g, "\n\n").trim();
+
+      return text;
+    }
+
+    function isStructuralLine(s){
+      const t = (s || "").trim();
+      return (
+        /^\d+\./.test(t) ||
+        /^(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ)\./.test(t) ||
+        /^[①②③④⑤]/.test(t) ||
+        /^\(.+\)$/.test(t) ||          // (다툼이 있으면 판례에 따름) 등이 단독줄일 때
+        /^보기\b/.test(t) ||
+        /^정답\b/.test(t) ||
+        /^해설\b/.test(t)
+      );
+    }
+
+    function joinSoftLineBreaks(text){
+      const lines = text.split("\n");
+      const out = [];
+
+      for(let i=0; i<lines.length; i++){
+        const curRaw = lines[i];
+        const cur = curRaw.replace(/\s+$/g, ""); // rstrip
+        const nextRaw = (i+1<lines.length) ? lines[i+1] : "";
+        const next = nextRaw.replace(/^\s+/g, ""); // lstrip
+
+        if(cur.trim() === ""){
+          out.push("");
+          continue;
+        }
+        if(next.trim() === ""){
+          out.push(cur);
+          continue;
+        }
+
+        // 구조 라인은 줄 유지
+        if(isStructuralLine(cur) || isStructuralLine(next)){
+          out.push(cur);
+          continue;
+        }
+
+        // 일반 문장 중간 줄바꿈 → 공백으로 합침
+        out.push(cur + " " + next);
+        i++; // next consumed
+      }
+
+      return out.join("\n");
+    }
+
+    function normalizeSpaces(text){
+      // 문장부호 앞 공백 제거
+      text = text.replace(/\s+([,.;:!?])/g, "$1");
+      // 괄호 주변 공백
+      text = text.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+      // 연속 공백 2개 이상 → 1개
+      text = text.replace(/[ \t]{2,}/g, " ");
+      // 줄 시작 공백 제거
+      text = text.replace(/^\s+/gm, "");
+      return text;
+    }
+
+    function formatQuestions(text){
+      // 문제번호 앞 빈 줄
+      text = text.replace(/\n(\d+\.)/g, "\n\n$1");
+
+      // ㄱㄴㄷ 강제 줄바꿈
+      text = text.replace(/\s*(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ)\.\s*/g, "\n$1. ");
+
+      // 선지(①~⑤) 무조건 1줄씩
+      text = text.replace(/\s*([①②③④⑤])\s*/g, "\n$1 ");
+      text = text.replace(/\n\s*([①②③④⑤])/g, "\n$1");
+
+      // 너무 많은 빈 줄 정리
+      text = text.replace(/\n{3,}/g, "\n\n");
+      return text;
+    }
+
+    // ---- 민법 결합어 사전(안전한 것 위주) ----
+    function applyLawFixDict(text){
+      const dict = [
+        // 물권/기본 결합어
+        [/\b물\s*권\b/g, "물권"],
+        [/\b물\s*권\s*행위\b/g, "물권행위"],
+        [/\b물\s*권\s*변동\b/g, "물권변동"],
+        [/\b물\s*권\s*법정주의\b/g, "물권법정주의"],
+        [/\b물\s*권\s*적\s*청구권\b/g, "물권적청구권"],
+        [/\b물권\s*적\s*청구권\b/g, "물권적청구권"],
+        [/\b물\s*권\s*적\b/g, "물권적"],
+
+        // 소유권/등기
+        [/\b소유권이\s*전\b/g, "소유권이전"],
+        [/\b소유권이\s*전청구\b/g, "소유권이전청구"],
+        [/\b소유권이\s*전등기\b/g, "소유권이전등기"],
+        [/\b소유권이\s*전청구권\b/g, "소유권이전청구권"],
+        [/\b소유권이\s*전등기청구권\b/g, "소유권이전등기청구권"],
+        [/\b소유권이\s*전등기\s*청구권\b/g, "소유권이전등기청구권"],
+        [/\b중간\s*생략\s*등기\b/g, "중간생략등기"],
+        [/\b가\s*등기\b/g, "가등기"],
+        [/\b본\s*등기\b/g, "본등기"],
+        [/\b설정\s*등기\b/g, "설정등기"],
+        [/\b말\s*소등기\b/g, "말소등기"],
+
+        // 담보물권
+        [/\b저당\s*권\b/g, "저당권"],
+        [/\b근저당\s*권\b/g, "근저당권"],
+        [/\b전세\s*권\b/g, "전세권"],
+        [/\b지상\s*권\b/g, "지상권"],
+        [/\b유치\s*권\b/g, "유치권"],
+        [/\b질\s*권\b/g, "질권"],
+        [/\b동산\s*질권\b/g, "동산질권"],
+
+        // 채권/시효/행위
+        [/\b법률\s*행위\b/g, "법률행위"],
+        [/\b의사\s*표시\b/g, "의사표시"],
+        [/\b통정\s*허위\s*표시\b/g, "통정허위표시"],
+        [/\b채권\s*자\b/g, "채권자"],
+        [/\b채무\s*자\b/g, "채무자"],
+        [/\b소멸\s*시효\b/g, "소멸시효"],
+        [/\b시효\s*중단\b/g, "시효중단"],
+        [/\b점유\s*취득\s*시효\b/g, "점유취득시효"],
+        [/\b무권\s*대리\b/g, "무권대리"],
+        [/\b표현\s*대리\b/g, "표현대리"],
+        [/\b유권\s*대리\b/g, "유권대리"],
+        [/\b법정\s*대리인\b/g, "법정대리인"],
+        [/\b임의\s*대리인\b/g, "임의대리인"],
+        [/\b대리\s*권\b/g, "대리권"],
+        [/\b수권\s*행위\b/g, "수권행위"],
+        [/\b취소\s*권\b/g, "취소권"],
+        [/\b불법\s*행위\b/g, "불법행위"],
+        [/\b공동\s*불법\s*행위\b/g, "공동불법행위"],
+        [/\b손해\s*배상\b/g, "손해배상"],
+        [/\b부당\s*이득\b/g, "부당이득"],
+        [/\b부당\s*이득반환\s*청구권\b/g, "부당이득반환청구권"],
+      ];
+
+      for(const [re,to] of dict){
+        text = text.replace(re,to);
+      }
+      return text;
+    }
+
+    function downloadTxt(){
+      const text = $("output").value || "";
+      if(!text.trim()){ alert("다운로드할 텍스트가 없습니다."); return; }
+
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "output.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyToClipboard(){
+      const text = $("output").value || "";
+      if(!text.trim()){ return; }
+      try{
+        await navigator.clipboard.writeText(text);
+        setDetail("클립보드에 복사됨", false);
+      }catch(e){
+        alert("복사에 실패했습니다(브라우저 권한/보안 설정).");
+      }
+    }
+  </script>
+</body>
+</html>
