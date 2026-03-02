@@ -3,1048 +3,475 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TXT Line Break Correction (PDF Preview + Page Range)</title>
-
+  <title>PDF → Text Cleaner (Advanced)</title>
   <style>
-    :root{
-      --bg:#0b0f19;
-      --panel:#11182a;
-      --text:#e8eefc;
-      --muted:#9fb0d0;
-      --line:#24304f;
-      --accent:#6aa6ff;
-      --accent2:#7cf3d1;
-      --danger:#ff6a8a;
-      --warn:#ffd36a;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius:16px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      color:var(--text);
-      background: radial-gradient(1200px 600px at 15% 10%, rgba(106,166,255,.20), transparent 55%),
-                  radial-gradient(1000px 600px at 80% 30%, rgba(124,243,209,.14), transparent 55%),
-                  linear-gradient(180deg, #070a12, var(--bg));
-      min-height:100vh;
-      padding:26px 16px 44px;
-    }
-    .wrap{max-width:1300px;margin:0 auto}
-    header{display:flex;gap:14px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
-    h1{font-size:20px;margin:0;letter-spacing:.2px}
-    .sub{margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.45;max-width:920px}
-
-    button{
-      border:1px solid rgba(255,255,255,.12);
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:12px;
-      cursor:pointer;
-      box-shadow: 0 1px 0 rgba(255,255,255,.06) inset;
-      transition: transform .05s ease, border-color .15s ease, background .15s ease;
-      font-weight:600;
-      font-size:13px;
-      display:inline-flex;align-items:center;gap:8px;
-      user-select:none;
-    }
-    button:hover{border-color:rgba(106,166,255,.55)}
-    button:active{transform:translateY(1px)}
-    button.primary{border-color:rgba(106,166,255,.55); background:linear-gradient(180deg, rgba(106,166,255,.22), rgba(106,166,255,.08))}
-    button.good{border-color:rgba(124,243,209,.55); background:linear-gradient(180deg, rgba(124,243,209,.20), rgba(124,243,209,.06))}
-    button.danger{border-color:rgba(255,106,138,.55); background:linear-gradient(180deg, rgba(255,106,138,.18), rgba(255,106,138,.06))}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Arial,sans-serif;max-width:1180px;margin:0 auto;padding:22px;line-height:1.45;color:#111}
+    h1{margin:0 0 10px;font-size:22px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    a.back{text-decoration:none;color:#111;border:1px solid #ddd;padding:8px 10px;border-radius:10px}
+    .small{font-size:12px;color:#555}
+    .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+    .card{border:1px solid #ddd;border-radius:12px;padding:14px;background:#fff}
+    .left{flex:1 1 440px;min-width:320px}
+    .right{flex:1 1 560px;min-width:320px}
+    label{display:block;font-size:13px;margin:10px 0 6px;color:#333}
+    input[type="number"], input[type="text"], select{padding:8px 10px;border:1px solid #ccc;border-radius:10px}
+    input[type="number"]{width:110px}
+    input[type="text"]{width:min(520px,100%)}
+    input[type="file"]{margin-top:6px}
+    button{padding:10px 12px;border:1px solid #ccc;border-radius:10px;background:#f7f7f7;cursor:pointer}
+    button.primary{background:#111;color:#fff;border-color:#111}
     button:disabled{opacity:.5;cursor:not-allowed}
-    .pill{
-      font-size:11px; padding:4px 8px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      color:var(--muted);
-      background:rgba(255,255,255,.03);
-      white-space:nowrap;
-    }
-    .pill.ok{border-color:rgba(124,243,209,.55); color:rgba(124,243,209,.95); background:rgba(124,243,209,.06)}
-    .pill.warn{border-color:rgba(255,211,106,.55); color:rgba(255,211,106,.95); background:rgba(255,211,106,.06)}
-    .pill.err{border-color:rgba(255,106,138,.55); color:rgba(255,106,138,.95); background:rgba(255,106,138,.06)}
-
-    .grid{
-      display:grid;
-      grid-template-columns: 420px 1fr;
-      gap:14px;
-      margin-top:14px;
-    }
-    @media (max-width: 1050px){ .grid{grid-template-columns:1fr} }
-
-    .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-    .card .head{
-      padding:13px 14px 11px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);
-    }
-    .card .head h2{margin:0;font-size:13.5px}
-    .card .body{padding:14px}
-
-    .kv{
-      display:flex; flex-wrap:wrap; gap:10px;
-      padding:10px;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;
-      background:rgba(0,0,0,.12);
-      margin-bottom:12px;
-    }
-    .kv .row{display:flex;align-items:center;gap:10px}
-    .kv label{font-size:12px;color:var(--muted)}
-    input[type="number"]{
-      width:96px;
-      background:rgba(0,0,0,.25);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.14);
-      border-radius:10px;
-      padding:8px 10px;
-      font-family:var(--mono);
-      font-size:12px;
-    }
-    input[type="checkbox"]{transform:scale(1.05)}
-    .muted{color:var(--muted);font-size:12px;line-height:1.5}
-
-    .drop{
-      border:1.5px dashed rgba(106,166,255,.55);
-      border-radius:14px;
-      padding:14px;
-      background:rgba(106,166,255,.08);
-      display:flex; flex-direction:column; gap:8px;
-    }
-    .drop.drag{background:rgba(124,243,209,.10); border-color:rgba(124,243,209,.70)}
-    .file-input{display:none}
-    .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-
-    .list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding-right:4px}
-    .item{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px; padding:10px;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;
-      background:rgba(0,0,0,.15);
-    }
-    .item-left{display:flex;align-items:center;gap:10px;min-width:0}
-    .item-left label{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer}
-    .fname{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
-    .meta{font-size:11px;color:var(--muted)}
-
-    textarea{
-      width:100%;
-      min-height:520px;
-      resize:vertical;
-      background:rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:14px;
-      padding:12px;
-      color:var(--text);
-      font-family:var(--mono);
-      font-size:12.2px;
-      line-height:1.45;
-      outline:none;
-    }
-    textarea:focus{border-color:rgba(106,166,255,.55)}
-
-    .status{
-      margin-top:10px;
-      padding:10px 12px;
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;
-      background:rgba(0,0,0,.14);
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.5;
-      display:flex; align-items:flex-start; gap:10px;
-    }
-    .status b{color:var(--text)}
-    .status .dot{
-      width:9px;height:9px;border-radius:50%;
-      margin-top:4px;background:rgba(159,176,208,.8);
-      box-shadow:0 0 0 3px rgba(159,176,208,.15);
-      flex:0 0 auto;
-    }
-    .status.ok .dot{background:rgba(124,243,209,.9); box-shadow:0 0 0 3px rgba(124,243,209,.15)}
-    .status.warn .dot{background:rgba(255,211,106,.95); box-shadow:0 0 0 3px rgba(255,211,106,.15)}
-    .status.err .dot{background:rgba(255,106,138,.95); box-shadow:0 0 0 3px rgba(255,106,138,.15)}
-
-    /* PDF preview */
-    .pdfbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
-    .pagebtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    .pagebtn{
-      padding:7px 10px;
-      border-radius:10px;
-      font-size:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.18);
-    }
-    .pagebtn.active{
-      border-color:rgba(106,166,255,.7);
-      background:rgba(106,166,255,.16);
-    }
-    .canvaswrap{
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:14px;
-      background:rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    canvas{display:block; width:100%; height:auto}
-    .tiny{font-size:11.5px;color:var(--muted);line-height:1.45}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .hint{font-size:12px;color:#666;margin-top:8px}
+    textarea{width:100%;height:460px;margin-top:10px;font-size:14px;padding:12px;border:1px solid #ccc;border-radius:12px;white-space:pre-wrap}
+    .previewWrap{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+    canvas{border:1px solid #ddd;border-radius:10px;max-width:100%;height:auto}
+    .toggle{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;color:#333}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .log{background:#0b0b0b;color:#eaeaea;border-radius:10px;padding:10px;font-size:12px;max-height:140px;overflow:auto}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid #ddd;border-radius:999px;font-size:12px;color:#333;background:#fafafa}
   </style>
-
-  <!-- JSZip (client-side zip) -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <!-- PDF.js -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
 </head>
-
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>TXT 줄바꿈 보정 + PDF 페이지 미리보기/범위 추출</h1>
-        <div class="sub">
-          PDF는 PDF.js로 페이지별 텍스트를 끝까지 추출합니다(잘림 방지). TXT는 드래그앤드롭으로 일괄 보정 후 ZIP 다운로드 가능.
+  <div class="topbar">
+    <a class="back" href="../">← Tool Hub</a>
+    <div class="small">Client-only / GitHub Pages</div>
+  </div>
+
+  <h1>PDF → Text Cleaner (Advanced)</h1>
+  <div class="small">
+    • 2단 PDF는 <span class="pill">컬럼 분리</span>가 핵심입니다. • 선지(①~⑤)는 <span class="pill">무조건 1줄</span>로 강제합니다.
+  </div>
+
+  <div class="row">
+    <div class="card left">
+      <label>PDF 업로드</label>
+      <input type="file" id="pdfFile" accept="application/pdf" />
+
+      <label>미리보기</label>
+      <div class="previewWrap">
+        <div>
+          <div class="toggle">
+            <span class="small">Page</span>
+            <input type="number" id="previewPage" min="1" value="1" />
+            <button id="btnPreview" onclick="renderPreview()" disabled>미리보기</button>
+            <button id="btnSetStart" onclick="setStartFromPreview()" disabled>Start=이 페이지</button>
+            <button id="btnSetEnd" onclick="setEndFromPreview()" disabled>End=이 페이지</button>
+          </div>
+          <div class="hint" id="pdfInfo">PDF를 올리면 페이지 수가 표시됩니다.</div>
         </div>
+        <canvas id="previewCanvas"></canvas>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="good" id="btnPickPdf"><span>📕</span>PDF 선택</button>
-        <button class="good" id="btnPickTxt"><span>📄</span>TXT 선택</button>
-        <button class="primary" id="btnFix" disabled><span>✨</span>수정</button>
-        <button class="primary" id="btnZip" disabled><span>📦</span>ZIP 다운로드</button>
-        <button class="danger" id="btnClear" disabled><span>🧹</span>초기화</button>
-      </div>
-    </header>
 
-    <div class="grid">
-      <!-- Left -->
-      <div class="card">
-        <div class="head">
-          <h2>PDF 추출 / TXT 파일</h2>
-          <span class="pill" id="countPill">0개</span>
+      <label>텍스트 추출 페이지 범위</label>
+      <div class="previewWrap">
+        <div><div class="small">Start</div><input type="number" id="startPage" min="1" value="1" /></div>
+        <div><div class="small">End</div><input type="number" id="endPage" min="1" value="1" /></div>
+      </div>
+
+      <label>컬럼(2단) 처리</label>
+      <div class="grid2">
+        <div class="toggle">
+          <input type="checkbox" id="autoColumns" checked />
+          <span>2단 자동 분리</span>
         </div>
-
-        <div class="body">
-          <!-- PDF section -->
-          <div class="kv">
-            <div class="row">
-              <label>PDF 추출 범위</label>
-              <input type="number" id="pdfFrom" min="1" value="1" />
-              <span class="muted">~</span>
-              <input type="number" id="pdfTo" min="1" value="1" />
-            </div>
-            <div class="row">
-              <button class="primary" id="btnExtractPdf" disabled><span>🧾</span>범위 추출 → 편집창</button>
-            </div>
-          </div>
-
-          <div class="pdfbar">
-            <span class="pill" id="pdfInfoPill">PDF 없음</span>
-            <div class="pagebtns" id="pageBtns"></div>
-          </div>
-
-          <div class="canvaswrap" style="margin-bottom:10px">
-            <canvas id="pdfCanvas"></canvas>
-          </div>
-          <div class="tiny" id="pdfHint">PDF를 선택하면 1~8 페이지 버튼이 보이고, 클릭해서 이동할 수 있습니다.</div>
-
-          <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:14px 0"/>
-
-          <!-- TXT section -->
-          <div class="drop" id="dropTxt">
-            <strong>여기에 TXT 파일 드래그앤드롭</strong>
-            <div class="muted">여러 파일 가능 → 일괄 보정 → ZIP</div>
-            <input class="file-input" type="file" id="txtInput" accept=".txt,text/plain" multiple />
-            <input class="file-input" type="file" id="pdfInput" accept="application/pdf" />
-          </div>
-
-          <div class="controls">
-            <button id="btnAddTxt"><span>➕</span>TXT 추가</button>
-            <button id="btnRemoveSelected" class="danger" disabled><span>🗑️</span>선택 제거</button>
-          </div>
-
-          <div class="list" id="fileList"></div>
-
-          <div class="status" id="statusBox">
-            <div class="dot"></div>
-            <div><b>대기</b><br/>PDF 또는 TXT를 추가하세요.</div>
-          </div>
-
-          <div class="tiny" style="margin-top:10px">
-            규칙: 기호(①/ㄱ/1)/문항 시작은 강제 줄바꿈, <span style="color:var(--text)">(다툼이 있으면 판례에 따름)</span> 뒤는 강제 줄바꿈.
-          </div>
+        <div>
+          <div class="small">컬럼 분리 기준(중앙선) 보정</div>
+          <input type="number" id="midBias" value="0" step="5" />
+          <div class="hint">0=자동, +면 오른쪽으로, -면 왼쪽으로</div>
         </div>
       </div>
 
-      <!-- Right -->
-      <div class="card">
-        <div class="head">
-          <h2>미리보기</h2>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <span class="pill warn" id="modePill">단일 파일 미리보기</span>
-            <button id="btnDownloadOne" class="good" disabled><span>⬇️</span>수정본 다운로드</button>
-          </div>
-        </div>
-
-        <div class="body">
-          <div class="kv">
-            <div class="row">
-              <input type="checkbox" id="optKeepBlank" checked />
-              <label for="optKeepBlank">빈 줄 유지</label>
-            </div>
-            <div class="row">
-              <input type="checkbox" id="optSmartNoSpace" checked />
-              <label for="optSmartNoSpace">조사/어미/쪼개짐은 붙이기</label>
-            </div>
-            <div class="row">
-              <label for="optMaxJoin">합치기 최대 연속 줄</label>
-              <input type="number" id="optMaxJoin" min="1" max="60" value="14" />
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <div class="muted" style="margin:0 0 6px;">원본</div>
-              <textarea id="taOriginal" readonly placeholder="왼쪽에서 파일을 선택하거나, PDF 범위 추출을 실행하세요."></textarea>
-            </div>
-            <div>
-              <div class="muted" style="margin:0 0 6px;">수정 결과</div>
-              <textarea id="taFixed" readonly placeholder="“수정”을 누르면 결과가 표시됩니다."></textarea>
-            </div>
-          </div>
+      <label>정리 옵션</label>
+      <div class="grid2">
+        <div class="toggle"><input type="checkbox" id="rmHeaders" checked /><span>머리/꼬리말 제거(연도/회차/A형-xx-yy)</span></div>
+        <div class="toggle"><input type="checkbox" id="rmSubjects" checked /><span>“제2과목: …” 같은 과목 라인 제거</span></div>
+        <div class="toggle"><input type="checkbox" id="lawDict" checked /><span>법률 용어 결합어 사전(물권/의사표시 등)</span></div>
+        <div>
+          <div class="small">문장 줄바꿈 합치기 강도</div>
+          <select id="joinMode">
+            <option value="off">OFF</option>
+            <option value="low" selected>LOW</option>
+            <option value="med">MED</option>
+          </select>
         </div>
       </div>
+
+      <label>키워드 필터(선택): 포함된 구간만 남기기</label>
+      <input type="text" id="keepKeyword" placeholder="예: 민법 (비우면 전체)" />
+
+      <div class="toggle">
+        <input type="checkbox" id="debug" />
+        <span>디버그 로그 표시</span>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="btnExtract" onclick="extractText()" disabled>Extract + Clean</button>
+        <button id="btnDownload" onclick="downloadTxt()" disabled>Download TXT</button>
+        <button id="btnCopy" onclick="copyToClipboard()" disabled>Copy</button>
+      </div>
+
+      <div class="hint">
+        네가 보여준 “좌/우 섞임”은 <b>2단 분리 실패</b>일 때 자주 발생합니다.<br/>
+        미리보기로 해당 페이지를 보면서 Start/End를 잡고, midBias를 ±로 조금씩 조절해보면 개선됩니다.
+      </div>
+
+      <div id="logWrap" style="display:none;margin-top:10px;">
+        <div class="small mono">debug log</div>
+        <div class="log mono" id="log"></div>
+      </div>
+    </div>
+
+    <div class="card right">
+      <label>결과</label>
+      <textarea id="output" placeholder="여기에 정리된 텍스트가 나옵니다."></textarea>
     </div>
   </div>
 
-<script>
-(() => {
-  /** -----------------------------
-   * PDF.js worker
-   * ------------------------------ */
-  if (window.pdfjsLib) {
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
-  }
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-  /** -----------------------------
-   * State
-   * ------------------------------ */
-  const state = {
-    files: [],               // {id, name, size, text, fixedText, kind: "txt"|"pdfExtract"}
-    selected: new Set(),
-    lastSingleId: null,
+    let pdfDoc = null;
+    const $ = (id) => document.getElementById(id);
 
-    pdf: {
-      doc: null,
-      fileName: null,
-      numPages: 0,
-      currentPage: 1,
-      pageTextCache: new Map(), // pageNo -> extracted raw text
-      lastRenderTask: null
+    function log(msg){
+      if(!$("debug").checked) return;
+      $("logWrap").style.display = "block";
+      $("log").textContent += msg + "\\n";
+      $("log").scrollTop = $("log").scrollHeight;
     }
-  };
-
-  /** -----------------------------
-   * DOM
-   * ------------------------------ */
-  const $ = (id) => document.getElementById(id);
-
-  const countPill = $("countPill");
-  const statusBox = $("statusBox");
-
-  const btnPickPdf = $("btnPickPdf");
-  const btnPickTxt = $("btnPickTxt");
-  const btnFix = $("btnFix");
-  const btnZip = $("btnZip");
-  const btnClear = $("btnClear");
-
-  const btnAddTxt = $("btnAddTxt");
-  const btnRemoveSelected = $("btnRemoveSelected");
-  const fileList = $("fileList");
-
-  const taOriginal = $("taOriginal");
-  const taFixed = $("taFixed");
-  const modePill = $("modePill");
-  const btnDownloadOne = $("btnDownloadOne");
-
-  const dropTxt = $("dropTxt");
-  const txtInput = $("txtInput");
-  const pdfInput = $("pdfInput");
-
-  const optKeepBlank = $("optKeepBlank");
-  const optSmartNoSpace = $("optSmartNoSpace");
-  const optMaxJoin = $("optMaxJoin");
-
-  const pdfFrom = $("pdfFrom");
-  const pdfTo = $("pdfTo");
-  const btnExtractPdf = $("btnExtractPdf");
-  const pdfCanvas = $("pdfCanvas");
-  const pageBtns = $("pageBtns");
-  const pdfInfoPill = $("pdfInfoPill");
-  const pdfHint = $("pdfHint");
-
-  /** -----------------------------
-   * Helpers
-   * ------------------------------ */
-  const uid = () => Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, (m) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-    }[m]));
-  }
-
-  function fmtBytes(n){
-    if(n < 1024) return n + " B";
-    if(n < 1024*1024) return (n/1024).toFixed(1) + " KB";
-    return (n/(1024*1024)).toFixed(2) + " MB";
-  }
-
-  function setStatus(kind, title, msg){
-    statusBox.className = "status" + (kind ? (" " + kind) : "");
-    statusBox.innerHTML = `
-      <div class="dot"></div>
-      <div><b>${escapeHtml(title)}</b><br/>${escapeHtml(msg)}</div>
-    `;
-  }
-
-  function downloadBlob(filename, blob){
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  /** -----------------------------
-   * Rules: line break correction
-   * ------------------------------ */
-
-  // 강제 줄바꿈(지문 끝 마커)
-  const RE_FORCE_BREAK_AFTER = /\(다툼이\s*있으면\s*판례에\s*따름\)/u;
-
-  // 기호/문항 시작(무조건 블록)
-  const RE_SYMBOL_LINE = new RegExp(
-    [
-      "^\\s*[①-⑳]\\s*",                 // ① ② ...
-      "^\\s*[ㄱ-ㅎ]\\s*\\.|^\\s*[ㄱ-ㅎ]\\s", // ㄱ. / ㄱ
-      "^\\s*\\d+\\)",                    // 1)
-      "^\\s*\\(\\d+\\)",                 // (1)
-      "^\\s*\\d+\\.",                    // 1.
-      "^\\s*[A-Z]\\.",                   // A.
-      "^\\s*[※★●■▶▷]\\s*"               // 특수기호
-    ].join("|"),
-    "u"
-  );
-
-  // 헤더 라인(필요시 유지)
-  const RE_HEADER_LINE = /^\\s*\\d{4}년도.+\\(\\s*\\d+\\s*-\\s*\\d+\\s*\\)\\s*$/u;
-
-  function shouldKeepNewline(prevLine, nextLine){
-    const prev = prevLine ?? "";
-    const next = nextLine ?? "";
-    const p = prev.trim();
-    const n = next.trim();
-
-    // ✅ (다툼...) 뒤는 무조건 줄바꿈
-    if (RE_FORCE_BREAK_AFTER.test(prev)) return true;
-
-    // ✅ 기호 줄은 앞/뒤 모두 무조건 줄바꿈
-    if (RE_SYMBOL_LINE.test(n)) return true;
-    if (RE_SYMBOL_LINE.test(p)) return true;
-
-    // blank lines
-    if(p === "" || n === "") return true;
-
-    // Keep after header-ish
-    if(RE_HEADER_LINE.test(p)) return true;
-
-    // 문장부호로 끝나면 줄바꿈 유지(과도 병합 방지)
-    if(/[.!?]["')\\]]?$/u.test(p)) return true;
-
-    return false;
-  }
-
-  function decideJoiner(prevLine, nextLine){
-    const prev = prevLine.replace(/\\s+$/u, "");
-    const next = nextLine.replace(/^\\s+/u, "");
-
-    // 괄호/구두점 붙임
-    if(/[\\(\\[\\{]$/u.test(prev)) return "";
-    if(/^[\\)\\]\\},.;:!?]/u.test(next)) return "";
-
-    if(!optSmartNoSpace.checked) return " ";
-
-    const prevLastToken = prev.split(/\\s+/u).slice(-1)[0] || "";
-    const nextFirstToken = next.split(/\\s+/u)[0] || "";
-
-    const isHangul = (s) => /^[가-힣]+$/u.test(s);
-    const endsHangul = /[가-힣]$/u.test(prev);
-    const startsHangul = /^[가-힣]/u.test(next);
-
-    // 조사/어미(대표)
-    const particleLike = /^(은|는|을|를|이|가|에|의|와|과|도|로|으로|만|까지|부터|보다|처럼|라도|라면|라서|라서도|에서|에게|께서|한|하는|하며|하면|했다|한다|된다|되는|된|되지|있다|없다)/u;
-    if(endsHangul && particleLike.test(next)) return "";
-
-    // "것이 + 라도/라면" 류는 붙임
-    if (/(것이|점이|바가|경우가|사실이)$/u.test(prev) && /^(라도|라면|라서|라서도|라든지)/u.test(next)) return "";
-
-    // "乙이\n이를" 같은 케이스: 이를/그를/그녀를 등은 공백 포함 합치기
-    const spaceJoinPronoun = /^(이를|그를|그녀를|그것을|그것이|이를)\b/u;
-    if (spaceJoinPronoun.test(next)) return " ";
-
-    // 한글 1~2글자 + 한글 1~2글자(쪼개짐) → 붙임
-    if(isHangul(prevLastToken) && isHangul(nextFirstToken)){
-      if(prevLastToken.length <= 2 && nextFirstToken.length <= 2) return "";
-    }
-
-    // "Y토\n지로" 같은 케이스: 영문/숫자+한글1글자 끝 + 다음 줄 한글 시작 → 붙임
-    if (/[A-Za-z0-9][가-힣]$/u.test(prev) && startsHangul) return "";
-
-    return " ";
-  }
-
-  function fixLineBreaks(text){
-    const keepBlank = optKeepBlank.checked;
-    let maxJoin = parseInt(optMaxJoin.value, 10);
-    if(!Number.isFinite(maxJoin) || maxJoin < 1) maxJoin = 14;
-
-    const normalized = String(text)
-      .replace(/\\r\\n/g, "\\n")
-      .replace(/\\r/g, "\\n");
-
-    const lines = normalized.split("\\n");
-    const out = [];
-    let buf = "";
-    let joinCount = 0;
-
-    function flush(){
-      if(buf !== ""){
-        out.push(buf);
-        buf = "";
-      }
-      joinCount = 0;
-    }
-
-    for(let i=0;i<lines.length;i++){
-      const line = lines[i];
-      const next = (i+1 < lines.length) ? lines[i+1] : null;
-
-      if(buf === ""){
-        if(line.trim()===""){
-          if(keepBlank) out.push("");
-          continue;
-        }
-        buf = line.trimEnd();
-        joinCount = 0;
-        continue;
-      }
-
-      if(line.trim()===""){
-        flush();
-        if(keepBlank) out.push("");
-        continue;
-      }
-
-      if(shouldKeepNewline(buf, line)){
-        flush();
-        buf = line.trimEnd();
-        joinCount = 0;
-        continue;
-      }
-
-      if(joinCount >= maxJoin){
-        flush();
-        buf = line.trimEnd();
-        joinCount = 0;
-        continue;
-      }
-
-      const joiner = decideJoiner(buf, line);
-      buf = buf.replace(/\\s+$/u, "") + joiner + line.replace(/^\\s+/u, "");
-      joinCount += 1;
-
-      if(next && shouldKeepNewline(buf, next)){
-        flush();
-      }
-    }
-
-    flush();
-    return out.join("\\n").replace(/\\n{3,}/g, "\\n\\n");
-  }
-
-  /** -----------------------------
-   * File list / UI
-   * ------------------------------ */
-  function refreshUI(){
-    countPill.textContent = state.files.length + "개";
-    btnClear.disabled = state.files.length === 0 && !state.pdf.doc;
-    btnFix.disabled = state.files.length === 0;
-    btnZip.disabled = state.files.length === 0;
-    btnRemoveSelected.disabled = state.selected.size === 0;
-
-    if(state.files.length === 1){
-      modePill.textContent = "단일 파일 미리보기";
-      modePill.className = "pill warn";
-    }else if(state.files.length > 1){
-      modePill.textContent = "여러 파일 (ZIP 가능)";
-      modePill.className = "pill ok";
-    }else{
-      modePill.textContent = "단일 파일 미리보기";
-      modePill.className = "pill warn";
-    }
-
-    fileList.innerHTML = "";
-    state.files.forEach((f) => {
-      const checked = state.selected.has(f.id);
-      const fixedTag = (typeof f.fixedText === "string") ? "ok" : "warn";
-      const fixedLabel = (typeof f.fixedText === "string") ? "수정됨" : "미수정";
-
-      const div = document.createElement("div");
-      div.className = "item";
-      div.innerHTML = `
-        <div class="item-left">
-          <label>
-            <input type="checkbox" data-id="${f.id}" ${checked ? "checked": ""} />
-            <div style="min-width:0">
-              <div class="fname" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
-              <div class="meta">${escapeHtml(fmtBytes(f.size))} · ${escapeHtml(f.kind)}</div>
-            </div>
-          </label>
-        </div>
-        <span class="pill ${fixedTag}">${fixedLabel}</span>
-      `;
-
-      div.addEventListener("click", (e) => {
-        if(e.target && e.target.tagName === "INPUT") return;
-        showPreview(f.id);
-      });
-
-      const cb = div.querySelector("input[type=checkbox]");
-      cb.addEventListener("change", () => {
-        const id = cb.getAttribute("data-id");
-        if(cb.checked) state.selected.add(id);
-        else state.selected.delete(id);
-        refreshUI();
-      });
-
-      fileList.appendChild(div);
+    $("debug").addEventListener("change", ()=>{
+      $("logWrap").style.display = $("debug").checked ? "block" : "none";
+      if(!$("debug").checked) $("log").textContent = "";
     });
 
-    // preview target
-    if(state.files.length === 0){
-      taOriginal.value = "";
-      taFixed.value = "";
-      btnDownloadOne.disabled = true;
-      state.lastSingleId = null;
+    $("pdfFile").addEventListener("change", async () => {
+      const file = $("pdfFile").files[0];
+      if (!file) return;
 
-      if(!state.pdf.doc){
-        setStatus("", "대기", "PDF 또는 TXT를 추가하세요.");
-      }else{
-        setStatus("warn", "PDF 로드됨", "범위 추출을 실행하거나, TXT 파일을 추가하세요.");
+      $("log").textContent = "";
+      log("loading pdf...");
+
+      const buf = await file.arrayBuffer();
+      pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+
+      $("pdfInfo").textContent = `총 ${pdfDoc.numPages}페이지`;
+      $("previewPage").max = pdfDoc.numPages;
+      $("startPage").max = pdfDoc.numPages;
+      $("endPage").max = pdfDoc.numPages;
+
+      $("startPage").value = 1;
+      $("endPage").value = pdfDoc.numPages;
+      $("previewPage").value = 1;
+
+      $("btnPreview").disabled = false;
+      $("btnExtract").disabled = false;
+      $("btnSetStart").disabled = false;
+      $("btnSetEnd").disabled = false;
+
+      await renderPreview();
+      log(`pdf loaded: pages=${pdfDoc.numPages}`);
+    });
+
+    function clampInt(v, min, max) {
+      const n = parseInt(v, 10);
+      if (Number.isNaN(n)) return min;
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function setStartFromPreview(){
+      if(!pdfDoc) return;
+      $("startPage").value = clampInt($("previewPage").value, 1, pdfDoc.numPages);
+    }
+    function setEndFromPreview(){
+      if(!pdfDoc) return;
+      $("endPage").value = clampInt($("previewPage").value, 1, pdfDoc.numPages);
+    }
+
+    async function renderPreview() {
+      if (!pdfDoc) return;
+      const p = clampInt($("previewPage").value, 1, pdfDoc.numPages);
+      $("previewPage").value = p;
+
+      const page = await pdfDoc.getPage(p);
+      const viewport = page.getViewport({ scale: 1.25 });
+
+      const canvas = $("previewCanvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      log(`preview rendered: page=${p}, w=${canvas.width}, h=${canvas.height}`);
+    }
+
+    async function extractText() {
+      if (!pdfDoc) { alert("PDF를 먼저 업로드하세요."); return; }
+
+      const start = clampInt($("startPage").value, 1, pdfDoc.numPages);
+      const end = clampInt($("endPage").value, 1, pdfDoc.numPages);
+      $("startPage").value = start;
+      $("endPage").value = end;
+
+      if (start > end) { alert("Start가 End보다 클 수 없습니다."); return; }
+
+      const keepKeyword = $("keepKeyword").value.trim();
+      const useColumns = $("autoColumns").checked;
+      const midBias = parseInt($("midBias").value, 10) || 0;
+
+      $("btnExtract").disabled = true;
+      $("btnExtract").textContent = "Processing...";
+      $("btnDownload").disabled = true;
+      $("btnCopy").disabled = true;
+
+      try{
+        let out = "";
+        for (let i = start; i <= end; i++) {
+          const page = await pdfDoc.getPage(i);
+          const textContent = await page.getTextContent({ disableCombineTextItems: false });
+
+          const pageText = reconstructTextFromItems(textContent.items, { useColumns, midBias, pageNo:i });
+          out += pageText + "\\n\\n";
+        }
+
+        out = cleanText(out, keepKeyword, {
+          rmHeaders: $("rmHeaders").checked,
+          rmSubjects: $("rmSubjects").checked,
+          lawDict: $("lawDict").checked,
+          joinMode: $("joinMode").value
+        });
+
+        $("output").value = out.trim() + "\\n";
+        $("btnDownload").disabled = false;
+        $("btnCopy").disabled = false;
+      }catch(e){
+        console.error(e);
+        alert("추출 중 오류가 발생했습니다.");
+      }finally{
+        $("btnExtract").disabled = false;
+        $("btnExtract").textContent = "Extract + Clean";
       }
-      return;
     }
 
-    if(!state.lastSingleId || !state.files.some(f => f.id === state.lastSingleId)){
-      state.lastSingleId = state.files[0].id;
-      showPreview(state.lastSingleId, true);
-    }
+    function reconstructTextFromItems(items, { useColumns, midBias, pageNo }) {
+      const chars = items
+        .filter(it => it.str && it.str.trim().length > 0)
+        .map(it => {
+          const x = it.transform[4];
+          const y = it.transform[5];
+          return { s: it.str, x, y, w: it.width || 0 };
+        });
 
-    const fixedCount = state.files.filter(f => typeof f.fixedText === "string").length;
-    if(fixedCount === 0){
-      setStatus("warn", "준비됨", "“수정”을 누르면 줄바꿈 보정이 적용됩니다.");
-    }else if(fixedCount < state.files.length){
-      setStatus("warn", "부분 수정", `${fixedCount}/${state.files.length} 파일이 수정되었습니다.`);
-    }else{
-      setStatus("ok", "완료", `전체 ${state.files.length}개 파일 수정 완료. 다운로드 가능.`);
-    }
-  }
+      if (chars.length === 0) return "";
 
-  function showPreview(id, silent=false){
-    const f = state.files.find(x => x.id === id);
-    if(!f) return;
-    state.lastSingleId = id;
+      if (useColumns) {
+        const xs = chars.map(c => c.x).sort((a,b)=>a-b);
+        const minX = xs[0], maxX = xs[xs.length-1];
+        let midX = (minX + maxX) / 2 + midBias;
 
-    taOriginal.value = f.text ?? "";
-    taFixed.value = (typeof f.fixedText === "string") ? f.fixedText : "";
-    btnDownloadOne.disabled = !(typeof f.fixedText === "string");
+        const left = chars.filter(c => c.x < midX);
+        const right = chars.filter(c => c.x >= midX);
 
-    if(!silent) refreshUI();
-  }
+        const leftRatio = left.length / chars.length;
+        const rightRatio = right.length / chars.length;
 
-  /** -----------------------------
-   * TXT ingest
-   * ------------------------------ */
-  async function addTxtFiles(fileListLike){
-    const files = Array.from(fileListLike || [])
-      .filter(f => f && ((f.name||"").toLowerCase().endsWith(".txt") || (f.type||"").startsWith("text/")));
-    if(files.length === 0) return;
+        const isTwoColumn = (leftRatio > 0.22 && rightRatio > 0.22);
 
-    for(const file of files){
-      const text = await file.text();
-      state.files.push({
-        id: uid(),
-        name: file.name || "untitled.txt",
-        size: file.size || text.length,
-        text,
-        fixedText: null,
-        kind: "txt"
-      });
-    }
-    state.files.forEach(f => state.selected.add(f.id));
-    state.lastSingleId = state.files[state.files.length - files.length].id;
-    showPreview(state.lastSingleId, true);
-    refreshUI();
-  }
+        log(`[p${pageNo}] column check: minX=${minX.toFixed(1)} maxX=${maxX.toFixed(1)} midX=${midX.toFixed(1)} left=${leftRatio.toFixed(2)} right=${rightRatio.toFixed(2)} twoCol=${isTwoColumn}`);
 
-  /** -----------------------------
-   * Actions: fix / download
-   * ------------------------------ */
-  function runFix(){
-    if(state.files.length === 0) return;
-
-    const targetIds = (state.selected.size > 0)
-      ? Array.from(state.selected)
-      : state.files.map(f => f.id);
-
-    for(const id of targetIds){
-      const f = state.files.find(x => x.id === id);
-      if(!f) continue;
-      f.fixedText = fixLineBreaks(f.text || "");
-    }
-
-    if(state.lastSingleId) showPreview(state.lastSingleId, true);
-    refreshUI();
-  }
-
-  function downloadOne(){
-    if(!state.lastSingleId) return;
-    const f = state.files.find(x => x.id === state.lastSingleId);
-    if(!f || typeof f.fixedText !== "string") return;
-
-    const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
-    downloadBlob(outName, new Blob([f.fixedText], {type:"text/plain;charset=utf-8"}));
-  }
-
-  async function downloadZip(){
-    if(state.files.length === 0) return;
-
-    // auto-fix all if needed
-    const needFix = state.files.some(f => typeof f.fixedText !== "string");
-    if(needFix) runFix();
-
-    const zip = new JSZip();
-    for(const f of state.files){
-      const fixed = (typeof f.fixedText === "string") ? f.fixedText : (f.text || "");
-      const outName = f.name.replace(/\\.txt$/i, "") + "_fixed.txt";
-      zip.file(outName, fixed);
-    }
-    const blob = await zip.generateAsync({type:"blob"});
-    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
-    downloadBlob(`txt_linebreak_fixed_${stamp}.zip`, blob);
-  }
-
-  function clearAll(){
-    state.files = [];
-    state.selected.clear();
-    state.lastSingleId = null;
-    taOriginal.value = "";
-    taFixed.value = "";
-    btnDownloadOne.disabled = true;
-
-    // pdf state too
-    state.pdf.doc = null;
-    state.pdf.fileName = null;
-    state.pdf.numPages = 0;
-    state.pdf.currentPage = 1;
-    state.pdf.pageTextCache.clear();
-    pageBtns.innerHTML = "";
-    pdfInfoPill.textContent = "PDF 없음";
-    pdfInfoPill.className = "pill";
-    btnExtractPdf.disabled = true;
-    pdfFrom.value = 1;
-    pdfTo.value = 1;
-    // clear canvas
-    const ctx = pdfCanvas.getContext("2d");
-    ctx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
-    pdfHint.textContent = "PDF를 선택하면 1~8 페이지 버튼이 보이고, 클릭해서 이동할 수 있습니다.";
-
-    refreshUI();
-  }
-
-  function removeSelected(){
-    if(state.selected.size === 0) return;
-    const ids = new Set(state.selected);
-    state.files = state.files.filter(f => !ids.has(f.id));
-    state.selected.clear();
-    state.files.forEach(f => state.selected.add(f.id));
-    state.lastSingleId = state.files[0]?.id ?? null;
-    if(state.lastSingleId) showPreview(state.lastSingleId, true);
-    refreshUI();
-  }
-
-  /** -----------------------------
-   * PDF: load / render / extract
-   * ------------------------------ */
-  async function loadPdfFile(file){
-    if(!file) return;
-    if(!window.pdfjsLib){
-      setStatus("err","오류","PDF.js 로드에 실패했습니다. CDN 차단 여부를 확인하세요.");
-      return;
-    }
-
-    const buf = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({data: buf});
-
-    setStatus("warn","PDF 로딩중","페이지 정보를 읽고 있습니다...");
-    const pdfDoc = await loadingTask.promise;
-
-    state.pdf.doc = pdfDoc;
-    state.pdf.fileName = file.name || "document.pdf";
-    state.pdf.numPages = pdfDoc.numPages;
-    state.pdf.currentPage = 1;
-    state.pdf.pageTextCache.clear();
-
-    // Range inputs
-    pdfFrom.min = 1;
-    pdfTo.min = 1;
-    pdfFrom.max = state.pdf.numPages;
-    pdfTo.max = state.pdf.numPages;
-    pdfFrom.value = 1;
-    pdfTo.value = state.pdf.numPages;
-
-    // info + buttons
-    pdfInfoPill.textContent = `${state.pdf.fileName} · ${state.pdf.numPages}p`;
-    pdfInfoPill.className = "pill ok";
-
-    buildPageButtons();
-    await renderPdfPage(1);
-
-    btnExtractPdf.disabled = false;
-    setStatus("ok","PDF 로드 완료",`페이지 버튼(1~${Math.min(8,state.pdf.numPages)})으로 이동 가능. 범위 추출을 실행하세요.`);
-    refreshUI();
-  }
-
-  function buildPageButtons(){
-    pageBtns.innerHTML = "";
-    const n = state.pdf.numPages;
-
-    // 요구사항: 1~8 보이게 (문서가 8p면 1~8 전부)
-    // 문서가 더 길면 1~8만 고정 표시 + 현재 페이지가 9 이상이면 추가로 현재 페이지 버튼도 표시
-    const basePages = [];
-    for(let i=1;i<=Math.min(8,n);i++) basePages.push(i);
-
-    const extra = [];
-    if(n > 8 && state.pdf.currentPage > 8) extra.push(state.pdf.currentPage);
-
-    const pagesToShow = [...new Set([...basePages, ...extra])].sort((a,b)=>a-b);
-
-    for(const p of pagesToShow){
-      const b = document.createElement("button");
-      b.className = "pagebtn" + (p === state.pdf.currentPage ? " active" : "");
-      b.textContent = String(p);
-      b.addEventListener("click", async () => {
-        state.pdf.currentPage = p;
-        buildPageButtons();
-        await renderPdfPage(p);
-      });
-      pageBtns.appendChild(b);
-    }
-
-    pdfHint.textContent =
-      (n <= 8)
-        ? "페이지 숫자를 클릭하면 해당 페이지로 이동합니다."
-        : "1~8은 고정 표시됩니다. 9p 이상은 범위 추출로 처리하세요.";
-  }
-
-  async function renderPdfPage(pageNo){
-    const pdfDoc = state.pdf.doc;
-    if(!pdfDoc) return;
-
-    // cancel previous render (best-effort)
-    try{
-      if(state.pdf.lastRenderTask && state.pdf.lastRenderTask.cancel) state.pdf.lastRenderTask.cancel();
-    }catch{}
-
-    const page = await pdfDoc.getPage(pageNo);
-
-    const viewport = page.getViewport({scale: 1.3});
-    const ctx = pdfCanvas.getContext("2d");
-
-    pdfCanvas.width = Math.floor(viewport.width);
-    pdfCanvas.height = Math.floor(viewport.height);
-
-    const renderTask = page.render({canvasContext: ctx, viewport});
-    state.pdf.lastRenderTask = renderTask;
-
-    await renderTask.promise;
-  }
-
-  async function extractTextFromPage(pageNo){
-    const pdfDoc = state.pdf.doc;
-    if(!pdfDoc) return "";
-
-    if(state.pdf.pageTextCache.has(pageNo)){
-      return state.pdf.pageTextCache.get(pageNo);
-    }
-
-    const page = await pdfDoc.getPage(pageNo);
-    const textContent = await page.getTextContent();
-
-    // IMPORTANT: items를 순서대로 연결하되, PDF.js transform 기반으로 완벽한 레이아웃 복원은 어려움.
-    // 대신 줄바꿈을 충분히 남겨서(\\n) 이후 보정 로직이 처리하도록 함.
-    let lastY = null;
-    let line = "";
-    const lines = [];
-
-    for(const item of textContent.items){
-      const str = item.str ?? "";
-      const y = item.transform ? item.transform[5] : null;
-
-      // 줄 바뀜 감지 (y 좌표 변화)
-      if(lastY !== null && y !== null && Math.abs(y - lastY) > 4){
-        if(line.trim() !== ""){
-          lines.push(line);
-          line = "";
-        }else{
-          // keep blank-ish separation
-          lines.push("");
+        if (isTwoColumn) {
+          const leftText = reconstructOneColumn(left);
+          const rightText = reconstructOneColumn(right);
+          return (leftText + "\\n\\n" + rightText).trim();
         }
       }
 
-      // 단어 사이 간격은 PDF가 제각각이라, 기본은 그대로 이어붙이고
-      // 공백이 필요한 경우 item 안에 포함된 경우가 많음.
-      line += str;
-      lastY = y;
+      log(`[p${pageNo}] one column mode`);
+      return reconstructOneColumn(chars).trim();
     }
 
-    if(line.trim() !== "") lines.push(line);
+    function reconstructOneColumn(chars) {
+      const sorted = chars.slice().sort((a,b) => {
+        if (Math.abs(b.y - a.y) > 1.0) return b.y - a.y; // 위→아래
+        return a.x - b.x; // 좌→우
+      });
 
-    const pageText = lines.join("\n")
-      .replace(/[ \t]+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n");
+      const lines = [];
+      const yThreshold = 3.0;
 
-    state.pdf.pageTextCache.set(pageNo, pageText);
-    return pageText;
-  }
+      for (const c of sorted) {
+        let line = null;
+        for (const l of lines) {
+          if (Math.abs(l.y - c.y) <= yThreshold) { line = l; break; }
+        }
+        if (!line) { line = { y: c.y, items: [] }; lines.push(line); }
+        line.items.push(c);
+      }
 
-  async function extractRangeToEditor(){
-    if(!state.pdf.doc) return;
+      lines.sort((a,b)=>b.y-a.y);
 
-    let from = parseInt(pdfFrom.value, 10);
-    let to = parseInt(pdfTo.value, 10);
-    if(!Number.isFinite(from)) from = 1;
-    if(!Number.isFinite(to)) to = state.pdf.numPages;
+      return lines.map(line => {
+        line.items.sort((a,b)=>a.x-b.x);
 
-    from = Math.max(1, Math.min(state.pdf.numPages, from));
-    to = Math.max(1, Math.min(state.pdf.numPages, to));
-    if(from > to){ const tmp = from; from = to; to = tmp; }
+        // 평균 문자폭 추정
+        let avgW = 6;
+        {
+          let sum = 0, cnt = 0;
+          for (const it of line.items) {
+            const perChar = (it.w > 0 ? it.w : (it.s.length * 6)) / Math.max(1, it.s.length);
+            sum += perChar; cnt++;
+          }
+          if (cnt) avgW = sum / cnt;
+        }
 
-    pdfFrom.value = from;
-    pdfTo.value = to;
+        let s = "";
+        for (let i=0;i<line.items.length;i++) {
+          const cur = line.items[i];
+          const prev = line.items[i-1];
 
-    setStatus("warn","PDF 텍스트 추출중",`${from}~${to} 페이지를 순서대로 끝까지 추출합니다...`);
+          if (i===0) { s += cur.s; continue; }
 
-    // 핵심: 페이지를 전부 순회하며 await (잘림 방지)
-    const chunks = [];
-    for(let p=from; p<=to; p++){
-      const t = await extractTextFromPage(p);
-      chunks.push(`(PAGE ${p})\n` + t);
+          const prevWidth = prev.w || (prev.s.length * avgW);
+          const gap = (cur.x - (prev.x + prevWidth));
+
+          const needSpace = gap > avgW * 0.38;
+          if (needSpace && !endsWithNoSpace(prev.s) && !startsWithNoSpace(cur.s)) s += " ";
+          s += cur.s;
+        }
+        return s.trim();
+      }).join("\\n");
     }
 
-    const raw = chunks.join("\n\n");
-    const fixed = fixLineBreaks(raw);
+    function endsWithNoSpace(s){ return /[\\(（\\[「『“"']$/.test(s); }
+    function startsWithNoSpace(s){ return /^[\\)）\\]」』”"’'\\.,，。]/.test(s); }
 
-    // editor에 넣을 파일로 추가
-    const nameBase = (state.pdf.fileName || "pdf").replace(/\.pdf$/i, "");
-    const outName = `${nameBase}_${from}-${to}.txt`;
+    function cleanText(text, keepKeyword, opt) {
+      text = text.replace(/\\r\\n/g, "\\n");
 
-    const fileObj = {
-      id: uid(),
-      name: outName,
-      size: raw.length,
-      text: raw,
-      fixedText: fixed,     // 바로 보정까지 완료
-      kind: "pdfExtract"
-    };
-    state.files.push(fileObj);
-    state.selected.add(fileObj.id);
-    state.lastSingleId = fileObj.id;
-    showPreview(fileObj.id, true);
+      if (opt.rmHeaders) {
+        text = text.replace(/^\\s*\\d{4}년\\s*제\\d+회.*?A형[-–]\\d+[-–]\\d+\\s*$/gm, "");
+        text = text.replace(/^\\s*\\d{4}년도\\s*제\\d+회.*?\\(\\s*\\d+\\s*-\\s*\\d+\\s*\\)\\s*$/gm, "");
+      }
 
-    setStatus("ok","추출 완료",`${outName} 생성됨 (44번 이후 포함: 범위에 들어있으면 끝까지 추출됨).`);
-    refreshUI();
-  }
+      if (opt.rmSubjects) {
+        text = text.replace(/^\\s*제\\d+과목\\s*:\\s*.*$/gm, "");
+      }
 
-  /** -----------------------------
-   * Events
-   * ------------------------------ */
-  btnPickTxt.addEventListener("click", () => txtInput.click());
-  btnAddTxt.addEventListener("click", () => txtInput.click());
-  txtInput.addEventListener("change", async (e) => {
-    await addTxtFiles(e.target.files);
-    txtInput.value = "";
-  });
+      text = text.replace(/[ \\t]+\\n/g, "\\n");
+      text = text.replace(/\\n{3,}/g, "\\n\\n");
 
-  btnPickPdf.addEventListener("click", () => pdfInput.click());
-  pdfInput.addEventListener("change", async (e) => {
-    const f = e.target.files && e.target.files[0];
-    await loadPdfFile(f);
-    pdfInput.value = "";
-  });
+      if (keepKeyword) {
+        const lines = text.split("\\n");
+        const kept = [];
+        let keepMode = false;
+        for (const line of lines) {
+          const t = line.trim();
+          if (t.includes(keepKeyword)) keepMode = true;
+          if (keepMode && /^제\\d+과목\\s*:/.test(t) && !t.includes(keepKeyword)) keepMode = false;
+          if (keepMode) kept.push(line);
+        }
+        text = kept.join("\\n");
+      }
 
-  btnExtractPdf.addEventListener("click", extractRangeToEditor);
+      // 문제번호 / ㄱㄴㄷ / 선지 포맷
+      text = text.replace(/\\n(\\d+\\.)/g, "\\n\\n$1");
+      text = text.replace(/\\s*(ㄱ|ㄴ|ㄷ|ㄹ|ㅁ|ㅂ)\\.\\s*/g, "\\n$1. ");
+      text = text.replace(/\\s*([①②③④⑤])\\s*/g, "\\n$1 ");
 
-  btnFix.addEventListener("click", runFix);
-  btnZip.addEventListener("click", downloadZip);
-  btnClear.addEventListener("click", clearAll);
-  btnRemoveSelected.addEventListener("click", removeSelected);
-  btnDownloadOne.addEventListener("click", downloadOne);
+      if (opt.joinMode !== "off") {
+        text = joinLines(text, opt.joinMode);
+      }
 
-  // option change => re-fix already fixed files
-  [optKeepBlank, optSmartNoSpace, optMaxJoin].forEach(el => {
-    el.addEventListener("change", () => {
-      const fixedCount = state.files.filter(f => typeof f.fixedText === "string").length;
-      if(fixedCount > 0) runFix();
-    });
-  });
+      if (opt.lawDict) {
+        text = applyLawDict(text);
+      }
 
-  // Drag & drop for TXT
-  ["dragenter","dragover"].forEach(evt => {
-    dropTxt.addEventListener(evt, (e) => {
-      e.preventDefault(); e.stopPropagation();
-      dropTxt.classList.add("drag");
-    });
-  });
-  ["dragleave","drop"].forEach(evt => {
-    dropTxt.addEventListener(evt, (e) => {
-      e.preventDefault(); e.stopPropagation();
-      dropTxt.classList.remove("drag");
-    });
-  });
-  dropTxt.addEventListener("drop", async (e) => {
-    const dt = e.dataTransfer;
-    if(dt && dt.files && dt.files.length) await addTxtFiles(dt.files);
-  });
+      text = text.replace(/\\n{3,}/g, "\\n\\n").trim() + "\\n";
+      return text;
+    }
 
-  // init
-  setStatus("", "대기", "PDF 또는 TXT를 추가하세요.");
-  refreshUI();
-})();
-</script>
+    function joinLines(text, mode){
+      const lines = text.split("\\n");
+      const out = [];
+      const aggressive = (mode === "med");
+
+      for (let i=0;i<lines.length;i++){
+        const cur = lines[i];
+        const next = lines[i+1];
+        if (!next){ out.push(cur); break; }
+
+        const ct = cur.trim();
+        const nt = next.trim();
+
+        const nextIsBlock =
+          /^\\d+\\./.test(nt) || /^[①②③④⑤]/.test(nt) || /^[ㄱㄴㄷㄹㅁㅂ]\\./.test(nt) || /^제\\d+과목\\s*:/.test(nt);
+
+        const curEnded =
+          /[\\.!?。…]$/.test(ct) ||
+          /[\\)\\]）】]$/.test(ct);
+
+        if (!nextIsBlock && !curEnded) {
+          // LOW: 다음 줄이 너무 짧으면 유지
+          if (!aggressive && nt.length <= 3) { out.push(cur); continue; }
+          out.push(cur.replace(/\\s+$/,"") + " " + next.replace(/^\\s+/,""));
+          i++;
+        } else {
+          out.push(cur);
+        }
+      }
+      return out.join("\\n");
+    }
+
+    function applyLawDict(text){
+      const dict = [
+        [/\\b물\\s*권\\b/g, "물권"],
+        [/\\b물\\s*권\\s*변동\\b/g, "물권변동"],
+        [/\\b물\\s*권\\s*행위\\b/g, "물권행위"],
+        [/\\b물\\s*권\\s*적\\s*청구권\\b/g, "물권적청구권"],
+        [/\\b법률\\s*행위\\b/g, "법률행위"],
+        [/\\b의사\\s*표시\\b/g, "의사표시"],
+        [/\\b통정\\s*허위\\s*표시\\b/g, "통정허위표시"],
+        [/\\b무권\\s*대리\\b/g, "무권대리"],
+        [/\\b표현\\s*대리\\b/g, "표현대리"],
+        [/\\b소멸\\s*시효\\b/g, "소멸시효"],
+        [/\\b채권자\\s*취소권\\b/g, "채권자취소권"],
+        [/\\b부당\\s*이득\\b/g, "부당이득"],
+        [/\\b손해\\s*배상\\b/g, "손해배상"],
+        [/\\b소유권\\s*이전\\b/g, "소유권이전"],
+        [/\\b소유권\\s*이전\\s*등기\\s*청구권\\b/g, "소유권이전등기청구권"],
+        [/\\b중간\\s*생략\\s*등기\\b/g, "중간생략등기"],
+        [/\\b근\\s*저당\\s*권\\b/g, "근저당권"],
+        [/\\b저당\\s*권\\b/g, "저당권"],
+        [/\\b유치\\s*권\\b/g, "유치권"],
+        [/\\b전세\\s*권\\b/g, "전세권"],
+        [/\\b지상\\s*권\\b/g, "지상권"],
+      ];
+      for (const [re,to] of dict) text = text.replace(re,to);
+      return text;
+    }
+
+    function downloadTxt() {
+      const text = $("output").value || "";
+      if (!text.trim()) return;
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "output.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyToClipboard() {
+      const text = $("output").value || "";
+      if (!text.trim()) return;
+      await navigator.clipboard.writeText(text);
+      alert("복사 완료");
+    }
+  </script>
 </body>
 </html>
